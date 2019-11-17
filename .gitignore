@@ -1,6 +1,6 @@
 .DS_Store
 decipher.txt
-decipher.dicom
+decipher.dcm
 out.enc
 
 # Byte-compiled / optimized / DLL files

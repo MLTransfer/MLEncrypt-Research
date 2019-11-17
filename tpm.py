@@ -7,7 +7,7 @@ def theta(t1, t2):
 
 
 class TPM:
-    '''TPM
+    '''
     Tree Parity Machine is a special type of multi-layer feed-forward neural network.
     K - number of hidden neurons
     N - number of input neurons connected to each hidden neuron
@@ -86,7 +86,7 @@ class TPM:
     # make key from weight matrix
     def makeKey(self, key_length, iv_length):
         '''
-        weight matrix to key and iv : use sha256 on concatenated weights
+        weight matrix to key and iv : use sha512 on concatenated weights
         '''
         key = ''
         iv = ''
@@ -95,10 +95,10 @@ class TPM:
             if i == j:
                 iv += str(self.W[i, j])
             key += str(self.W[i, j])
-        # sha256 iv
-        hash_object_iv = hashlib.sha256(iv.encode('utf-8'))
+        # sha512 iv
+        hash_object_iv = hashlib.sha512(iv.encode('utf-8'))
         hex_dig_iv = hash_object_iv.hexdigest()
-        # sha256 key
-        hash_object_key = hashlib.sha256(key.encode('utf-8'))
+        # sha512 key
+        hash_object_key = hashlib.sha512(key.encode('utf-8'))
         hex_dig_key = hash_object_key.hexdigest()
         return (hex_dig_key[0:int(key_length / 4)], hex_dig_iv[0:int(iv_length / 4)])

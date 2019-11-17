@@ -3,9 +3,10 @@ import numpy as np
 import time
 import sys
 import pydicom
-import getopt
 import matplotlib.pyplot as plt
 import pyAesCrypt
+from os import stat, remove
+import click
 
 
 def random(K, N, L):
@@ -24,58 +25,54 @@ def sync_score(TPM1, TPM2, L):
     return 1.0 - np.average(1.0 * np.abs(TPM1.W - TPM2.W) / (2 * L))
 
 
-def main(argv):
-    # default Tree Parity Machine parameters
-    K = 8
-    N = 12
-    L = 4
-    key_length = 128  # bits
-    iv_length = 128  # bits
-    update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
-    update_rule = 'hebbian'
-    input_file = ''
-    output_file = 'out.enc'
-    has_input_file = False
-    try:
-        opts, args = getopt.getopt(argv, "hK:N:L:k:v:i:o:r:", [
-                                   "K=", "N=", "L=", "k=", "v=", "i=", "o=", "r="])
-    except getopt.GetoptError:
-        print('unknown options')
-        print('run.py -r hebbian -i <input file> -o <output file> -K <nb hidden neurons> -N <nb input neurons> -L <range of weight> -k <key length> -v <iv length>')
-        print('update rule : hebbian, anti_hebbian, random_walk')
-        print('key length options : 128, 192, 256')
-        print('iv length : [0:256] multiple of 4')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('run.py -r hebbian -i <input file> -o <output file> -K <nb hidden neurons> -N <nb input neurons> -L <range of weight> -k <key length> -v <iv length>')
-            print('update rule : hebbian, anti_hebbian, random_walk')
-            print('default values : K=8, N=12, L=4')
-            print('key length options : 128, 192, 256')
-            print('iv length : [0:256]')
-            sys.exit()
-        elif opt in ("-i", "--i"):
-            has_input_file = True
-            input_file = arg
-        elif opt in ("-o", "--o"):
-            output_file = int(arg)
-        elif opt in ("-K", "--K"):
-            K = int(arg)
-        elif opt in ("-N", "--N"):
-            N = int(arg)
-        elif opt in ("-L", "--L"):
-            L = int(arg)
-        elif opt in ("-v", "--v"):
-            iv_length = int(arg)
-        elif opt in ("-r", "--r"):
-            update_rule = str(arg)
-        elif opt in ("-k", "--k"):
-            if arg == "128" or arg == "192" or arg == "256":
-                key_length = int(arg)
-            else:
-                print('non available key options')
-                print('key length options : 128, 192, 256')
-                sys.exit()
+def aes_encrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
+    if is_dicom:
+        with open(input_file, "rb") as fIn:
+            with open(output_file, "wb") as fOut:
+                pyAesCrypt.encryptStream(fIn, fOut, Alice_key, key_length)
+    else:
+        pyAesCrypt.encryptFile(input_file, output_file, Alice_key, key_length)
+
+
+def aes_decrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
+    if is_dicom:
+        with open(input_file, "rb") as fIn:
+            try:
+                with open(output_file, "wb") as fOut:
+                    # decrypt file stream
+                    pyAesCrypt.decryptStream(
+                        fIn, fOut, Alice_key, key_length,
+                        stat(input_file).st_size)
+            except ValueError:
+                # remove output file on error
+                remove(output_file)
+    else:
+        pyAesCrypt.decryptFile(input_file, output_file,
+                               Alice_key, key_length)
+
+
+class ChoiceType(click.Choice):
+    def __init__(self, typemap):
+        super(ChoiceType, self).__init__(typemap.keys())
+        self.typemap = typemap
+
+    def convert(self, value, param, ctx):
+        value = super(ChoiceType, self).convert(value, param, ctx)
+        return self.typemap[value]
+
+
+@click.command()
+@click.option('-i', '--input-file', required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option('-r', '--update-rule', default='hebbian', type=click.Choice(['hebbian', 'anti_hebbian', 'random_walk'], case_sensitive=False))
+@click.option('-o', '--output-file', default='out.enc', type=click.Path(dir_okay=False, writable=True))
+@click.option('-k', default=8, type=int)
+@click.option('-n', default=12, type=int)
+@click.option('-l', default=4, type=int)
+@click.option('-key', '--key-length', default='256', type=ChoiceType({str(x): x for x in [128, 192, 256]}))
+@click.option('-iv', '--iv-length', default='128', type=ChoiceType({str(x): x for x in range(0, 256 + 1, 4)}))
+def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
+    # Tree Parity Machine parameters
+    K, N, L = k, n, l
 
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops communication of Alice and Bob
     print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L="
@@ -142,16 +139,15 @@ def main(argv):
             is_dicom = pydicom.dcmread(input_file) is not None
         except(pydicom.errors.InvalidDicomError):
             is_dicom = False
-        if has_input_file:
-            decrypt_file = "decipher.dcm" if is_dicom else "decipher.txt"
-            # cipher with AES
-            pyAesCrypt.encryptFile(
-                input_file, output_file, Alice_key, key_length)
-            # decipher with AES
-            pyAesCrypt.decryptFile(
-                output_file, decrypt_file, Alice_key, key_length)
-            print("encryption and decryption with aes"
-                  + str(key_length) + " done.")
+        decrypt_file = "decipher.dcm" if is_dicom else "decipher.txt"
+        # cipher with AES
+        aes_encrypt_file(is_dicom, input_file, output_file,
+                         Alice_key, key_length)
+        # decipher with AES
+        aes_decrypt_file(is_dicom, output_file,
+                         decrypt_file, Alice_key, key_length)
+        print("encryption and decryption with aes"
+              + str(key_length) + " done.")
     else:
         print("error, Alice and Bob have different key or iv : cipher impossible")
 
@@ -167,4 +163,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

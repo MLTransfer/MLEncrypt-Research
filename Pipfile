@@ -10,6 +10,7 @@ numpy = "*"
 matplotlib = "*"
 pyaescrypt = "*"
 pydicom = "*"
+click = "*"
 
 [requires]
 python_version = "3.6"

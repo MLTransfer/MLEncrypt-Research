@@ -2,6 +2,7 @@
 decipher.txt
 decipher.dcm
 out.enc
+logs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

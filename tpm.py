@@ -14,7 +14,7 @@ class TPM:
     W - The weight matrix between input and hidden layers. Dimensions : [K, N]
     '''
 
-    def __init__(self, K=8, N=12, L=4):
+    def __init__(self, name, K=8, N=12, L=4):
         '''
         Arguments:
         k - The number of hidden neurons
@@ -25,6 +25,7 @@ class TPM:
         self.L = tf.constant(L)
         self.W = tf.Variable(tf.random.uniform(
             (K, N), minval=-L, maxval=L + 1))
+        self.name = name
 
     def get_output(self, X):
         '''
@@ -78,18 +79,21 @@ class TPM:
         '''
         weight matrix to key and iv : use sha512 on concatenated weights
         '''
-        key = tf.Variable('')
-        iv = tf.Variable('')
+        key = ""
+        iv = ""
         # generate key
         for i in tf.range(self.K):
             for j in tf.range(self.N):
                 if i == j:
-                    iv.assign(iv + str(self.W[i, j]))
-                key.assign(key + str(self.W[i, j]))
-        # sha512 iv
-        hash_object_iv = hashlib.sha512(str(iv).encode('utf-8'))
-        hex_dig_iv = hash_object_iv.hexdigest()
-        # sha512 key
-        hash_object_key = hashlib.sha512(str(key).encode('utf-8'))
-        hex_dig_key = hash_object_key.hexdigest()
-        return (hex_dig_key[0:int(key_length / 4)], hex_dig_iv[0:int(iv_length / 4)])
+                    iv += tf.as_string(tf.cast(self.W[i, j], tf.int32))
+                key += tf.as_string(tf.cast(self.W[i, j], tf.int32))
+
+        def convert_to_hex_dig(input, is_iv=True):
+            return hashlib.sha512(
+                str(input).encode('utf-8')).hexdigest()[0:int(iv_length / 4 if is_iv else key_length / 4)]
+
+        tf.summary.text(f'{self.name}\'s independent variable',
+                        data=convert_to_hex_dig(iv, is_iv=True))
+        tf.summary.text(f'{self.name}\'s key',
+                        data=convert_to_hex_dig(key, is_iv=False))
+        return (convert_to_hex_dig(key, is_iv=False), convert_to_hex_dig(iv, is_iv=True))

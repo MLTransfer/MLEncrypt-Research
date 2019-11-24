@@ -18,7 +18,7 @@ def sync_score(TPM1, TPM2, L):
     TPM1 - Tree Parity Machine 1
     TPM2 - Tree Parity Machine 2
     '''
-    return 1.0 - tf.math.reduce_mean(1.0 * tf.math.abs(TPM1.W - TPM2.W) / (2 * L))
+    return tf.subtract(1, tf.math.reduce_mean(tf.math.abs(tf.subtract(TPM1.W, TPM2.W)) / (2 * L)))
 
 
 def aes_encrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
@@ -67,8 +67,8 @@ class ChoiceType(click.Choice):
 @click.option('-key', '--key-length', default='256', type=ChoiceType({str(x): x for x in [128, 192, 256]}))
 @click.option('-iv', '--iv-length', default='128', type=ChoiceType({str(x): x for x in range(0, 256 + 1, 4)}))
 def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
-    summary_writer = tf.summary.create_file_writer(
-        'logs/' + str(datetime.now()))
+    logdir = 'logs/' + str(datetime.now())
+    summary_writer = tf.summary.create_file_writer(logdir)
     summary_writer.set_as_default()
 
     # Tree Parity Machine parameters
@@ -77,9 +77,9 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops communication of Alice and Bob
     print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L="
           + str(L) + ", key-length=" + str(key_length) + ", initialization-vector-length=" + str(iv_length))
-    Alice = TPM(K, N, L)
-    Bob = TPM(K, N, L)
-    Eve = TPM(K, N, L)
+    Alice = TPM('Alice', K, N, L)
+    Bob = TPM('Bob', K, N, L)
+    Eve = TPM('Eve', K, N, L)
 
     # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -94,7 +94,8 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
 
     while score < 100:
         # Create random vector [K, N]
-        X = tf.Variable(tf.random.uniform((K, N), minval=-L, maxval=L + 1))
+        X = tf.Variable(tf.random.uniform(
+            (K, N), minval=-l, maxval=l + 1))
 
         # compute outputs of TPMs
         tauA = Alice.get_output(X)
@@ -114,22 +115,23 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
-
-        tf.summary.scalar('updates', data=nb_updates)
         tf.summary.scalar('Eve\'s updates',
                           data=nb_eve_updates)
 
+        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+
         # sync of Alice and Bob
         # Calculate the synchronization of Alice and Bob
-        score.assign(100 * sync_score(Alice, Bob, L))
+        score.assign(tf.cast(100 * sync_score(Alice, Bob, L), tf.float32))
         tf.summary.scalar('sync between Alice and Bob',
-                          data=score, step=tf.cast(nb_updates, tf.int64))
+                          data=score)
         sync_history.append(score)  # plot purpose
         # sync of Alice and Eve
         # Calculate the synchronization of Alice and Eve
         score_eve = 100 * sync_score(Alice, Eve, L)
-        tf.summary.scalar('sync between Alice and Eve',
-                          data=score_eve, step=tf.cast(nb_updates, tf.int64))
+        tf.summary.scalar('sync between Alice and Eve', data=score_eve)
         sync_history_eve.append(score_eve)  # plot purpose
 
         tf.print("\rSynchronization = ", score, "%   /  Updates = ",
@@ -140,9 +142,6 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
 
     # results
     tf.print("\nTime taken =", time_taken, "seconds.")
-    Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-    Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-    Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
     tf.print("Alice's gen key =", Alice_key,
              "key :", Alice_key, "iv :", Alice_iv)
     tf.print("Bob's gen key =", Bob_key,
@@ -173,6 +172,7 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
 
     else:
         print("error, Alice and Bob have different key or iv : cipher impossible")
+    print(f'Wrote log file to {logdir}')
 
 
 if __name__ == "__main__":

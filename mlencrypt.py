@@ -1,14 +1,17 @@
 from tpm import TPM
-import pydicom
-# import matplotlib.pyplot as plt
 from datetime import datetime
 import pyAesCrypt
-from os import stat, remove
+from os import stat, remove, path
 import click
 import tensorflow as tf
 
 
 tf.config.experimental_run_functions_eagerly(True)
+
+
+def is_binary(file):
+    return bool(open(file, 'rb').read(1024).translate(
+        None, bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})))
 
 
 @tf.function
@@ -91,6 +94,7 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
     sync_history = []  # plot purpose
     sync_history_eve = []  # plot purpose
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
+    score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
     while score < 100:
         # Create random vector [K, N]
@@ -98,13 +102,15 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
             (K, N), minval=-l, maxval=l + 1))
 
         # compute outputs of TPMs
-        tauA = Alice.get_output(X)
-        tauB = Bob.get_output(X)
-        tauE = Eve.get_output(X)
-
-        tf.summary.scalar('Alice\'s tau', data=tauA)
-        tf.summary.scalar('Bob\'s tau', data=tauB)
-        tf.summary.scalar('Eve\'s tau', data=tauE)
+        with tf.name_scope('Alice'):
+            tauA = Alice.get_output(X)
+            tf.summary.scalar('tau', data=tauA)
+        with tf.name_scope('Bob'):
+            tauB = Bob.get_output(X)
+            tf.summary.scalar('tau', data=tauB)
+        with tf.name_scope('Eve'):
+            tauE = Eve.get_output(X)
+            tf.summary.scalar('tau', data=tauE)
 
         Alice.update(tauB, update_rule)
         Bob.update(tauA, update_rule)
@@ -115,27 +121,23 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
-        tf.summary.scalar('Eve\'s updates',
-                          data=nb_eve_updates)
+        with tf.name_scope('Eve'):
+            tf.summary.scalar('updates', data=nb_eve_updates)
 
         Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
         Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-        # sync of Alice and Bob
-        # Calculate the synchronization of Alice and Bob
-        score.assign(tf.cast(100 * sync_score(Alice, Bob, L), tf.float32))
-        tf.summary.scalar('sync between Alice and Bob',
-                          data=score)
-        sync_history.append(score)  # plot purpose
-        # sync of Alice and Eve
-        # Calculate the synchronization of Alice and Eve
-        score_eve = 100 * sync_score(Alice, Eve, L)
-        tf.summary.scalar('sync between Alice and Eve', data=score_eve)
-        sync_history_eve.append(score_eve)  # plot purpose
-
-        tf.print("\rSynchronization = ", score, "%   /  Updates = ",
-                 nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
+        with tf.name_scope('sync'):
+            score.assign(tf.cast(100 * sync_score(Alice, Bob, L), tf.float32))
+            tf.summary.scalar('Alice + Bob', data=score)
+            sync_history.append(score)  # plot purpose
+            score_eve.assign(
+                tf.cast(100 * sync_score(Alice, Eve, L), tf.float32))
+            tf.summary.scalar('Alice + Eve', data=score_eve)
+            sync_history_eve.append(score_eve)  # plot purpose
+            tf.print("\rSynchronization = ", score, "%   /  Updates = ",
+                     nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
@@ -150,16 +152,13 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
              "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
-        try:
-            is_dicom = pydicom.dcmread(input_file) is not None
-        except(pydicom.errors.InvalidDicomError):
-            is_dicom = False
-        decrypt_file = "decipher.dcm" if is_dicom else "decipher.txt"
+        is_file_binary = is_binary(input_file)
+        decrypt_file = "decipher." + path.splitext(input_file)[1][1:]
         # cipher with AES
-        aes_encrypt_file(is_dicom, input_file, output_file,
+        aes_encrypt_file(is_file_binary, input_file, output_file,
                          Alice_key, key_length)
         # decipher with AES
-        aes_decrypt_file(is_dicom, output_file,
+        aes_decrypt_file(is_file_binary, output_file,
                          decrypt_file, Alice_key, key_length)
         tf.print("encryption and decryption with aes",
                  key_length, " done.", sep='')

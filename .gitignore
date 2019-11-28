@@ -3,6 +3,8 @@ decipher.txt
 decipher.dcm
 out.enc
 logs/*
+weights-heatmap-*.png
+weights-boxplot-*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

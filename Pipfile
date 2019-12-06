@@ -4,12 +4,17 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+tensorboard = "*"
 
 [packages]
 numpy = "*"
+matplotlib = "*"
 pyaescrypt = "*"
+pydicom = "*"
 click = "*"
 tensorflow = "*"
+seaborn = "*"
+pandas = "*"
 
 [requires]
 python_version = "3.6"

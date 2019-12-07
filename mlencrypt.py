@@ -2,8 +2,8 @@ from tpm import TPM
 from datetime import datetime
 import pyAesCrypt
 from os import stat, remove, path
-import click
 import tensorflow as tf
+from tensorboard.plugins.hparams import api as hp
 
 
 tf.config.experimental_run_functions_eagerly(True)
@@ -50,34 +50,8 @@ def aes_decrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
                                Alice_key, key_length)
 
 
-class ChoiceType(click.Choice):
-    def __init__(self, typemap):
-        super(ChoiceType, self).__init__(typemap.keys())
-        self.typemap = typemap
-
-    def convert(self, value, param, ctx):
-        value = super(ChoiceType, self).convert(value, param, ctx)
-        return self.typemap[value]
-
-
-@click.command()
-@click.option('-i', '--input-file', required=True, type=click.Path(exists=True, dir_okay=False))
-@click.option('-r', '--update-rule', default='hebbian', type=click.Choice(['hebbian', 'anti_hebbian', 'random_walk'], case_sensitive=False))
-@click.option('-o', '--output-file', default='out.enc', type=click.Path(dir_okay=False, writable=True))
-@click.option('-k', default=8, type=int)
-@click.option('-n', default=12, type=int)
-@click.option('-l', default=4, type=int)
-@click.option('-key', '--key-length', default='256', type=ChoiceType({str(x): x for x in [128, 192, 256]}))
-@click.option('-iv', '--iv-length', default='128', type=ChoiceType({str(x): x for x in range(0, 256 + 1, 4)}))
-def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
-    logdir = 'logs/' + str(datetime.now())
-    summary_writer = tf.summary.create_file_writer(logdir)
-    summary_writer.set_as_default()
-
-    # Tree Parity Machine parameters
-    K, N, L = k, n, l
-
-    # Create TPM for Alice, Bob and Eve. Eve eavesdrops communication of Alice and Bob
+def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
+    # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
     print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L="
           + str(L) + ", key-length=" + str(key_length) + ", initialization-vector-length=" + str(iv_length))
     Alice = TPM('Alice', K, N, L)
@@ -91,15 +65,15 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
                                  trainable=False, dtype=tf.int32)
     tf.summary.experimental.set_step(0)
     start_time = tf.timestamp(name='start_time')
-    sync_history = []  # plot purpose
-    sync_history_eve = []  # plot purpose
+    sync_history = []
+    sync_history_eve = []
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
     while score < 100:
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
-            (K, N), minval=-l, maxval=l + 1))
+            (K, N), minval=-L, maxval=L + 1))
 
         # compute outputs of TPMs
         with tf.name_scope('Alice'):
@@ -141,6 +115,7 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
 
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
+    tf.summary.scalar('time_taken', time_taken)
 
     # results
     tf.print("\nTime taken =", time_taken, "seconds.")
@@ -162,16 +137,84 @@ def main(input_file, update_rule, output_file, k, n, l, key_length, iv_length):
                          decrypt_file, Alice_key, key_length)
         tf.print("encryption and decryption with aes",
                  key_length, " done.", sep='')
-        eve_score = 100 * int(sync_score(Alice, Eve, L))
-        if eve_score > 100:
+        # eve_score = 100 * int(sync_score(Alice, Eve, L))
+        if score_eve > 100:
             print("Oops! Nosy Eve synced her machine with Alice's and Bob's!")
         else:
-            tf.print("Eve's machine is only ", eve_score,
-                     "% synced with Alice's and Bob's and she did ", nb_eve_updates, " updates.", sep='')
+            tf.print("Eve's machine is only ", score_eve,
+                     "% synced with Alice's and Bob's and she did ",
+                     nb_eve_updates, " updates.", sep='')
+        return time_taken, score_eve
 
     else:
         print("error, Alice and Bob have different key or iv : cipher impossible")
-    print(f'Wrote log file to {logdir}')
+
+    print("\n\n")
+
+
+def main():
+    use_hparams = True
+    input_file = 'test.dcm'  # or test.txt
+    output_file = 'out.enc'
+
+    if use_hparams:
+        HP_K = hp.HParam('tpm_k', hp.IntInterval(1, 24))  # 8
+        HP_N = hp.HParam('tpm_n', hp.IntInterval(2, 24))  # 12
+        HP_L = hp.HParam('tpm_l', hp.IntInterval(1, 24))  # 4
+        HP_UPDATE_RULE = hp.HParam('update_rule', hp.Discrete(
+            ['hebbian', 'anti_hebbian', 'random_walk']))  # hebbian
+        HP_KEY_LENGTH = hp.HParam(
+            'key_length', hp.Discrete([128, 192, 256]))  # 256
+        HP_IV_LENGTH = hp.HParam('iv_length', hp.Discrete(
+            range(0, 256 + 1, 4)))  # 128
+
+        hparams = [HP_UPDATE_RULE, HP_K, HP_N,
+                   HP_L, HP_KEY_LENGTH, HP_IV_LENGTH]
+
+        logdir = 'logs/hparams/' + str(datetime.now())
+        with tf.summary.create_file_writer(logdir).as_default():
+            hp.hparams_config(
+                hparams=hparams,
+                metrics=[hp.Metric('time_taken', display_name='Time'),
+                         hp.Metric('eve_score', display_name='Eve sync')]
+            )
+        session_num = 0
+        for K in (HP_K.domain.min_value, HP_K.domain.max_value):
+            for N in (HP_N.domain.min_value, HP_N.domain.max_value):
+                for L in (HP_L.domain.min_value, HP_L.domain.max_value):
+                    for update_rule in HP_UPDATE_RULE.domain.values:
+                        for key_length in HP_KEY_LENGTH.domain.values:
+                            for iv_length in HP_IV_LENGTH.domain.values:
+                                current_hparams = {
+                                    HP_K: K,
+                                    HP_N: N,
+                                    HP_L: L,
+                                    HP_UPDATE_RULE: update_rule,
+                                    HP_KEY_LENGTH: key_length,
+                                    HP_IV_LENGTH: iv_length
+                                }
+                                run_name = "run-%d" % session_num
+                                with tf.summary.create_file_writer(logdir + '/' + run_name).as_default():
+                                    run(input_file, update_rule, output_file,
+                                        K, N, L, key_length, iv_length)
+                                    hp.hparams(current_hparams)
+
+                                    session_num += 1
+        run()
+        print(f'Wrote log file to {logdir}')
+    else:
+        logdir = 'logs/' + str(datetime.now())
+        summary_writer = tf.summary.create_file_writer(logdir)
+        summary_writer.set_as_default()
+
+        K = 8
+        N = 12
+        L = 4
+        update_rule = 'hebbian'  # or anti_hebbian or random_walk
+        key_length = 256
+        iv_length = 128
+
+        run(input_file, update_rule, output_file, K, N, L, key_length, iv_length)
 
 
 if __name__ == "__main__":

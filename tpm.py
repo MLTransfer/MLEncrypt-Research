@@ -17,13 +17,13 @@ def tb_summary(name, data):
             tf.summary.scalar(
                 'mean', tf.reduce_mean(data))
             tf.summary.scalar(
-                'stddev', tf.math.reduce_std(data))
+                'stddev', tf.math.reduce_std(tf.cast(data, tf.float64)))
             tf.summary.scalar(
                 'max', tf.reduce_max(data))
             tf.summary.scalar(
                 'min', tf.reduce_min(data))
             tf.summary.scalar(
-                'softmax', tf.reduce_logsumexp(data))
+                'softmax', tf.reduce_logsumexp(tf.cast(data, tf.float64)))
             tf.summary.histogram('histogram', data)
 
 
@@ -80,7 +80,7 @@ class TPM:
             self.N = tf.constant(N)
             self.L = tf.constant(L)
             self.W = tf.Variable(tf.random.uniform(
-                (K, N), minval=-L, maxval=L + 1))
+                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64))
 
     def get_output(self, X):
         '''
@@ -144,6 +144,7 @@ class TPM:
         '''
         key = ""
         iv = ""
+
         # generate key
         for i in tf.range(self.K):
             for j in tf.range(self.N):

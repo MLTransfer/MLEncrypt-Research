@@ -73,7 +73,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     while score < 100:
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
-            (K, N), minval=-L, maxval=L + 1))
+            (K, N), minval=-L, maxval=L + 1, dtype=tf.int64))
 
         # compute outputs of TPMs
         with tf.name_scope('Alice'):
@@ -153,7 +153,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
 
 
 def main():
-    use_hparams = True
+    use_hparams = False
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 

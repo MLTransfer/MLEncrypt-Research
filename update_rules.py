@@ -11,7 +11,7 @@ def hebbian(W, X, sigma, tau1, tau2, l):
     for i in tf.range(k):
         for j in tf.range(n):
             W[i, j].assign(tf.clip_by_value(W[i, j] + X[i, j] * tau1
-                                            * theta(sigma[i], tau1) * theta(tau1, tau2), clip_value_min=tf.cast(-l, tf.float32), clip_value_max=tf.cast(l, tf.float32)))
+                                            * theta(sigma[i], tau1) * theta(tau1, tau2), clip_value_min=tf.cast(-l, tf.int64), clip_value_max=tf.cast(l, tf.int64)))
 
 
 def anti_hebbian(W, X, sigma, tau1, tau2, l):

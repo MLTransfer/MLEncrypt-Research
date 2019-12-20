@@ -31,7 +31,9 @@ def tb_heatmap(name, data, xaxis, yaxis):
     with tf.name_scope(name):
         _, ax = plt.subplots()
         sns.heatmap(pd.DataFrame(data=data.numpy(),
-                                 index=xaxis, columns=yaxis).transpose(), ax=ax)
+                                 index=xaxis,
+                                 columns=yaxis).transpose(),
+                    ax=ax)
         ax.set(xlabel="hidden perceptron", ylabel="input perceptron")
         png_file = f'{name}-heatmap-{tf.summary.experimental.get_step()}.png'
         plt.savefig(png_file)
@@ -59,8 +61,8 @@ def tb_boxplot(name, data, xaxis):
 
 
 class TPM:
-    '''Machine
-    A tree parity machine. Generates a binary digit(tau) for a given random vector(X).
+    '''
+    A tree parity machine.
     The machine can be described by the following parameters:
     k - The number of hidden neurons
     n - Then number of input neurons connected to each hidden neuron
@@ -73,14 +75,15 @@ class TPM:
         Arguments:
         k - The number of hidden neurons
         n - Then number of input neurons connected to each hidden neuron
-        l - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })		'''
+        l - Boundaries of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })'''
         self.name = name
         with tf.name_scope(name):
             self.K = tf.constant(K)
             self.N = tf.constant(N)
             self.L = tf.constant(L)
             self.W = tf.Variable(tf.random.uniform(
-                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64), trainable=True)
+                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64),
+                trainable=True)
 
     def get_output(self, X):
         '''
@@ -126,7 +129,10 @@ class TPM:
                             self.tau, tau2, self.L)
             else:
                 raise Exception("Invalid update rule. Valid update rules are: "
-                                + "\'hebbian\', \'anti_hebbian\' and \'random_walk\'.")
+                                + "\'hebbian\', "
+                                + "\'anti_hebbian\' and "
+                                + "\'random_walk\'."
+                                )
             with tf.name_scope(self.name):
                 xaxis = tf.range(1, self.K+1)
                 yaxis = tf.range(1, self.N+1)
@@ -154,11 +160,14 @@ class TPM:
 
         def convert_to_hex_dig(input, is_iv=True):
             return hashlib.sha512(
-                str(input).encode('utf-8')).hexdigest()[0:int(iv_length / 4 if is_iv else key_length / 4)]
+                str(input).encode('utf-8')).hexdigest()[0:int(iv_length / 4
+                                                              if is_iv else
+                                                              key_length / 4)]
 
         with tf.name_scope(self.name):
             tf.summary.text('independent variable',
                             data=convert_to_hex_dig(iv, is_iv=True))
             tf.summary.text('key',
                             data=convert_to_hex_dig(key, is_iv=False))
-        return (convert_to_hex_dig(key, is_iv=False), convert_to_hex_dig(iv, is_iv=True))
+        return (convert_to_hex_dig(key, is_iv=False),
+                convert_to_hex_dig(iv, is_iv=True))

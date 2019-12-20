@@ -11,7 +11,8 @@ tf.config.experimental_run_functions_eagerly(True)
 
 def is_binary(file):
     return bool(open(file, 'rb').read(1024).translate(
-        None, bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})))
+        None, bytearray({7, 8, 9, 10, 12, 13, 27} | set(
+            range(0x20, 0x100)) - {0x7f})))
 
 
 @tf.function
@@ -21,7 +22,11 @@ def sync_score(TPM1, TPM2, L):
     TPM1 - Tree Parity Machine 1
     TPM2 - Tree Parity Machine 2
     '''
-    return tf.subtract(1, tf.math.reduce_mean(tf.math.abs(tf.subtract(TPM1.W, TPM2.W)) / (2 * L)))
+    return tf.subtract(1,
+                       tf.math.reduce_mean(
+                           tf.math.abs(tf.subtract(TPM1.W, TPM2.W)) / (2 * L)
+                          )
+                       )
 
 
 def aes_encrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
@@ -52,8 +57,9 @@ def aes_decrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
 
 def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
-    print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L="
-          + str(L) + ", key-length=" + str(key_length) + ", initialization-vector-length=" + str(iv_length))
+    print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L=" + str(L)
+          + ", key-length=" + str(key_length)
+          + ", initialization-vector-length=" + str(iv_length))
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
     Eve = TPM('Eve', K, N, L)
@@ -147,7 +153,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
         return time_taken, score_eve
 
     else:
-        print("ERROR: Alice and Bob have different key or iv : cipher impossible")
+        print("ERROR: cipher impossible; Alice and Bob have different key/IV")
 
     print("\n\n")
 
@@ -213,7 +219,8 @@ def main():
         key_length = 256
         iv_length = 128
 
-        run(input_file, update_rule, output_file, K, N, L, key_length, iv_length)
+        run(input_file, update_rule, output_file, K, N, L, key_length,
+            iv_length)
 
 
 if __name__ == "__main__":

@@ -29,8 +29,8 @@ def sync_score(TPM1, TPM2, L):
                        )
 
 
-def aes_encrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
-    if is_dicom:
+def aes_encrypt_file(is_binary, input_file, output_file, Alice_key, key_length):
+    if is_binary:
         with open(input_file, "rb") as fIn:
             with open(output_file, "wb") as fOut:
                 pyAesCrypt.encryptStream(fIn, fOut, Alice_key, key_length)
@@ -38,8 +38,8 @@ def aes_encrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
         pyAesCrypt.encryptFile(input_file, output_file, Alice_key, key_length)
 
 
-def aes_decrypt_file(is_dicom, input_file, output_file, Alice_key, key_length):
-    if is_dicom:
+def aes_decrypt_file(is_binary, input_file, output_file, Alice_key, key_length):
+    if is_binary:
         with open(input_file, "rb") as fIn:
             try:
                 with open(output_file, "wb") as fOut:

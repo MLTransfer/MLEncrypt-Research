@@ -116,6 +116,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
     tf.summary.scalar('time_taken', time_taken)
+    tf.summary.scalar('eve_score', score_eve)
 
     # results
     tf.print("\nTime taken =", time_taken, "seconds.")
@@ -137,30 +138,29 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
                          decrypt_file, Alice_key, key_length)
         tf.print("encryption and decryption with aes",
                  key_length, " done.", sep='')
-        # eve_score = 100 * int(sync_score(Alice, Eve, L))
-        if score_eve > 100:
-            print("Oops! Nosy Eve synced her machine with Alice's and Bob's!")
+        if score_eve >= 100:
+            print("NOTE: Eve synced her machine with Alice's and Bob's!")
         else:
-            tf.print("Eve's machine is only ", score_eve,
+            tf.print("Eve's machine is ", score_eve,
                      "% synced with Alice's and Bob's and she did ",
                      nb_eve_updates, " updates.", sep='')
         return time_taken, score_eve
 
     else:
-        print("error, Alice and Bob have different key or iv : cipher impossible")
+        print("ERROR: Alice and Bob have different key or iv : cipher impossible")
 
     print("\n\n")
 
 
 def main():
-    use_hparams = False
+    use_hparams = True
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 
     if use_hparams:
-        HP_K = hp.HParam('tpm_k', hp.IntInterval(1, 24))  # 8
-        HP_N = hp.HParam('tpm_n', hp.IntInterval(2, 24))  # 12
-        HP_L = hp.HParam('tpm_l', hp.IntInterval(1, 24))  # 4
+        HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
+        HP_N = hp.HParam('tpm_n', hp.IntInterval(4, 24))  # 12
+        HP_L = hp.HParam('tpm_l', hp.IntInterval(4, 24))  # 4
         HP_UPDATE_RULE = hp.HParam('update_rule', hp.Discrete(
             ['hebbian', 'anti_hebbian', 'random_walk']))  # hebbian
         HP_KEY_LENGTH = hp.HParam(
@@ -200,7 +200,6 @@ def main():
                                     hp.hparams(current_hparams)
 
                                     session_num += 1
-        run()
         print(f'Wrote log file to {logdir}')
     else:
         logdir = 'logs/' + str(datetime.now())

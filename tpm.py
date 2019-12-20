@@ -80,7 +80,7 @@ class TPM:
             self.N = tf.constant(N)
             self.L = tf.constant(L)
             self.W = tf.Variable(tf.random.uniform(
-                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64))
+                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64), trainable=True)
 
     def get_output(self, X):
         '''

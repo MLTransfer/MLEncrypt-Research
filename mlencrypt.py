@@ -17,11 +17,14 @@ def is_binary(file):
 
 @tf.function
 def sync_score(TPM1, TPM2, L):
-    '''sync_score
-    Synchronize the score of 2 tree parity machines
-    TPM1 - Tree Parity Machine 1
-    TPM2 - Tree Parity Machine 2
-    '''
+    """
+    Args:
+        TPM1: Tree Parity Machine 1.
+        TPM2: Tree Parity Machine 2.
+        L: The parameter L of both TPMs.
+    Returns:
+        The synchronization score between TPM1 and TPM2.
+    """
     return tf.subtract(1,
                        tf.math.reduce_mean(
                            tf.math.abs(tf.subtract(TPM1.W, TPM2.W)) / (2 * L)
@@ -29,8 +32,8 @@ def sync_score(TPM1, TPM2, L):
                        )
 
 
-def aes_encrypt_file(is_binary, input_file, output_file, Alice_key, key_length):
-    if is_binary:
+def aes_encrypt_file(binary, input_file, output_file, Alice_key, key_length):
+    if binary:
         with open(input_file, "rb") as fIn:
             with open(output_file, "wb") as fOut:
                 pyAesCrypt.encryptStream(fIn, fOut, Alice_key, key_length)
@@ -38,8 +41,8 @@ def aes_encrypt_file(is_binary, input_file, output_file, Alice_key, key_length):
         pyAesCrypt.encryptFile(input_file, output_file, Alice_key, key_length)
 
 
-def aes_decrypt_file(is_binary, input_file, output_file, Alice_key, key_length):
-    if is_binary:
+def aes_decrypt_file(binary, input_file, output_file, Alice_key, key_length):
+    if binary:
         with open(input_file, "rb") as fIn:
             try:
                 with open(output_file, "wb") as fOut:
@@ -79,16 +82,16 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     while score < 100:
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
-            (K, N), minval=-L, maxval=L + 1, dtype=tf.int64))
+            (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
 
         # compute outputs of TPMs
-        with tf.name_scope('Alice'):
+        with tf.name_scope(Alice.name):
             tauA = Alice.get_output(X)
             tf.summary.scalar('tau', data=tauA)
-        with tf.name_scope('Bob'):
+        with tf.name_scope(Bob.name):
             tauB = Bob.get_output(X)
             tf.summary.scalar('tau', data=tauB)
-        with tf.name_scope('Eve'):
+        with tf.name_scope(Eve.name):
             tauE = Eve.get_output(X)
             tf.summary.scalar('tau', data=tauE)
 

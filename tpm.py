@@ -61,21 +61,21 @@ def tb_boxplot(name, data, xaxis):
 
 
 class TPM:
-    '''
+    """
     A tree parity machine.
     The machine can be described by the following parameters:
-    k - The number of hidden neurons
-    n - Then number of input neurons connected to each hidden neuron
-    l - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })
+    K - The number of hidden neurons
+    N - Then number of input neurons connected to each hidden neuron
+    L - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })
     W - The weight matrix between input and hidden layers. Dimensions : [K, N]
-    '''
+    """
 
     def __init__(self, name, K=8, N=12, L=4):
-        '''
-        Arguments:
-        k - The number of hidden neurons
-        n - Then number of input neurons connected to each hidden neuron
-        l - Boundaries of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })'''
+        """
+        Args:
+            K: The number of hidden neurons
+            N: Then number of input neurons connected to each hidden neuron
+            L: Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L})"""
         self.name = name
         with tf.name_scope(name):
             self.K = tf.constant(K)
@@ -85,20 +85,33 @@ class TPM:
                 (K, N), minval=-L, maxval=L + 1, dtype=tf.int64),
                 trainable=True)
 
-    def get_output(self, X):
-        '''
-        Returns a binary digit tau for a given random vecor.
-        Arguments:
-        X - Input random vector
-        '''
+    def compute_sigma(self, X):
+        """
+        Args:
+            X: A random vector which is the input for TPM.
+        Returns:
+            A tuple of the vector of the outputs of each hidden perceptron and the vector with all 0s replaced with -1s.
+        """
+        original = tf.math.sign(tf.math.reduce_sum(
+            tf.math.multiply(X, self.W), axis=1))
+        nonzero = tf.where(tf.equal(original, 0), -1, original)
+        return original, nonzero
 
-        W = self.W
+    def get_output(self, X):
+        """
+        Args:
+            X: A random vector which is the input for TPM.
+
+        Returns:
+            A binary digit tau for a given random vecor.
+
+        """
+
         tf.reshape(X, [self.K, self.N])
 
-        # Compute inner activation sigma Dimension:[K]
-        sigma = tf.math.sign(tf.math.reduce_sum(
-            tf.math.multiply(X, W), axis=1))
-        tau = tf.math.reduce_prod(sigma)  # The final output
+        # compute inner activation sigma, [K]
+        sigma, nonzero = self.compute_sigma(X)
+        tau = tf.math.reduce_prod(nonzero)
 
         with tf.name_scope(self.name):
             self.X = X
@@ -111,20 +124,21 @@ class TPM:
         return self.get_output(X)
 
     def update(self, tau2, update_rule='hebbian'):
-        '''
+        """
         Updates the weights according to the specified update rule.
-        Arguments:
-        tau2 - Output bit from the other machine;
-        update_rule - The update rule.
-        Should be one of ['hebbian', 'anti_hebbian', random_walk']
-        '''
-        if (self.tau == tau2):
-            if update_rule == 'hebbian':
+
+        Args:
+            tau2 - Output bit from the other machine;
+            update_rule - The update rule.
+            Should be one of ['hebbian', 'anti_hebbian', random_walk']
+        """
+        if tf.equal(self.tau, tau2):
+            if tf.equal(update_rule, 'hebbian'):
                 hebbian(self.W, self.X, self.sigma, self.tau, tau2, self.L)
-            elif update_rule == 'anti_hebbian':
+            elif tf.equal(update_rule, 'anti_hebbian'):
                 anti_hebbian(self.W, self.X, self.sigma,
                              self.tau, tau2, self.L)
-            elif update_rule == 'random_walk':
+            elif tf.equal(update_rule, 'random_walk'):
                 random_walk(self.W, self.X, self.sigma,
                             self.tau, tau2, self.L)
             else:
@@ -142,19 +156,21 @@ class TPM:
                     with tf.name_scope(f'hperceptron{i+1}'):
                         tb_summary('weights', self.W[i])
                         tb_summary('sigma', self.sigma)
-            return
 
     def makeKey(self, key_length, iv_length):
-        '''
-        weight matrix to key and iv : use sha512 on concatenated weights
-        '''
+        """
+        Args:
+            key_length: Length of key, must be 128, 192, or 256.
+            iv_length: Length of IV, must be a multiple of 4 between 0 and 256, inclusive.
+        Returns:
+            The key and IV based on the TPM's weights.
+        """
         key = ""
         iv = ""
 
-        # generate key
         for i in tf.range(self.K):
             for j in tf.range(self.N):
-                if i == j:
+                if tf.equal(i, j):
                     iv += tf.as_string(self.W[i, j])
                 key += tf.as_string(self.W[i, j])
 
@@ -164,10 +180,11 @@ class TPM:
                                                               if is_iv else
                                                               key_length / 4)]
 
+        current_key = convert_to_hex_dig(key, is_iv=False)
+        current_iv = convert_to_hex_dig(iv, is_iv=True)
         with tf.name_scope(self.name):
             tf.summary.text('independent variable',
-                            data=convert_to_hex_dig(iv, is_iv=True))
+                            data=current_iv)
             tf.summary.text('key',
-                            data=convert_to_hex_dig(key, is_iv=False))
-        return (convert_to_hex_dig(key, is_iv=False),
-                convert_to_hex_dig(iv, is_iv=True))
+                            data=current_key)
+        return (current_key, current_iv)

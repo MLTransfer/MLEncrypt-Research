@@ -1,68 +1,63 @@
 from tpm import TPM
 from datetime import datetime
-import pyAesCrypt
-from os import stat, remove, path
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
+import math
+from os import environ
 
 
 tf.config.experimental_run_functions_eagerly(True)
 
 
-def is_binary(file):
-    return bool(open(file, 'rb').read(1024).translate(
-        None, bytearray({7, 8, 9, 10, 12, 13, 27} | set(
-            range(0x20, 0x100)) - {0x7f})))
-
-
 @tf.function
-def sync_score(TPM1, TPM2, L):
+def sync_score(TPM1, TPM2):
     """
     Args:
-        TPM1: Tree Parity Machine 1.
-        TPM2: Tree Parity Machine 2.
-        L: The parameter L of both TPMs.
+        TPM1: Tree Parity Machine 1. Has same parameters as TPM2.
+        TPM2: Tree Parity Machine 2. Has same parameters as TPM1.
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
-    return tf.subtract(1,
-                       tf.math.reduce_mean(
-                           tf.math.abs(tf.subtract(TPM1.W, TPM2.W)) / (2 * L)
+
+    # Q_tpm1, Q_tpm2, and R are standard order parameters for online learning
+    # Q_tpm1 = tf.math.divide(tf.matmul(TPM1.W, TPM1.W, transpose_a=True), N)
+    # Q_tpm2 = tf.math.divide(tf.matmul(TPM2.W, TPM2.W, transpose_a=True), N)
+    # R = tf.math.divide(tf.matmul(TPM1.W, TPM2.W, transpose_a=True), N)
+    # rho = tf.math.divide(R, tf.matrix_square_root(
+    #     tf.matmul(Q_tpm1, Q_tpm2)))
+
+    # rho = tf.math.divide(tf.cast(tf.matmul(TPM1.W, TPM2.W, transpose_a=True), tf.float32),
+    #                      tf.multiply(
+    #     tf.matrix_square_root(
+    #         tf.cast(tf.matmul(TPM1.W, TPM1.W, transpose_a=True), tf.float32)),
+    #     tf.matrix_square_root(
+    #         tf.cast(tf.matmul(TPM2.W, TPM2.W, transpose_a=True), tf.float32)),
+    #     ))
+
+    rho = tf.subtract(1,
+                      tf.math.reduce_mean(
+                          tf.divide(
+                              tf.cast(tf.math.abs(tf.subtract(
+                                  TPM1.W, TPM2.W)), tf.float64),
+                              (2 * tf.cast(TPM1.L, tf.float64))
                           )
-                       )
+                      ))
+    epsilon = tf.multiply(tf.constant(
+        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho), tf.float32))
 
+    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+        with tf.name_scope(f'{TPM1.name} + {TPM2.name}'):
+            tf.summary.scalar('sync', data=rho)
+            tf.summary.scalar('generation-error', data=epsilon)
 
-def aes_encrypt_file(binary, input_file, output_file, Alice_key, key_length):
-    if binary:
-        with open(input_file, "rb") as fIn:
-            with open(output_file, "wb") as fOut:
-                pyAesCrypt.encryptStream(fIn, fOut, Alice_key, key_length)
-    else:
-        pyAesCrypt.encryptFile(input_file, output_file, Alice_key, key_length)
-
-
-def aes_decrypt_file(binary, input_file, output_file, Alice_key, key_length):
-    if binary:
-        with open(input_file, "rb") as fIn:
-            try:
-                with open(output_file, "wb") as fOut:
-                    # decrypt file stream
-                    pyAesCrypt.decryptStream(
-                        fIn, fOut, Alice_key, key_length,
-                        stat(input_file).st_size)
-            except ValueError:
-                # remove output file on error
-                remove(output_file)
-    else:
-        pyAesCrypt.decryptFile(input_file, output_file,
-                               Alice_key, key_length)
+    return rho
 
 
 def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
-    print("Creating machines : K=" + str(K) + ", N=" + str(N) + ", L=" + str(L)
-          + ", key-length=" + str(key_length)
-          + ", initialization-vector-length=" + str(iv_length))
+    print(
+        f"Creating machines: K={K}, N={N}, L={L}, key-length={key_length}, "
+        + f"initialization-vector-length={iv_length}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
     Eve = TPM('Eve', K, N, L)
@@ -87,13 +82,16 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
         # compute outputs of TPMs
         with tf.name_scope(Alice.name):
             tauA = Alice.get_output(X)
-            tf.summary.scalar('tau', data=tauA)
+            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+                tf.summary.scalar('tau', data=tauA)
         with tf.name_scope(Bob.name):
             tauB = Bob.get_output(X)
-            tf.summary.scalar('tau', data=tauB)
+            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+                tf.summary.scalar('tau', data=tauB)
         with tf.name_scope(Eve.name):
             tauE = Eve.get_output(X)
-            tf.summary.scalar('tau', data=tauE)
+            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+                tf.summary.scalar('tau', data=tauE)
 
         Alice.update(tauB, update_rule)
         Bob.update(tauA, update_rule)
@@ -104,23 +102,20 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
-        with tf.name_scope('Eve'):
-            tf.summary.scalar('updates', data=nb_eve_updates)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            with tf.name_scope(Eve.name):
+                tf.summary.scalar('updates', data=nb_eve_updates)
 
         Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
         Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-        with tf.name_scope('sync'):
-            score.assign(tf.cast(100 * sync_score(Alice, Bob, L), tf.float32))
-            tf.summary.scalar('Alice + Bob', data=score)
-            sync_history.append(score)  # plot purpose
-            score_eve.assign(
-                tf.cast(100 * sync_score(Alice, Eve, L), tf.float32))
-            tf.summary.scalar('Alice + Eve', data=score_eve)
-            sync_history_eve.append(score_eve)  # plot purpose
-            tf.print("\rSynchronization = ", score, "%   /  Updates = ",
-                     nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
+        score.assign(tf.cast(100 * sync_score(Alice, Bob), tf.float32))
+        sync_history.append(score)
+        score_eve.assign(tf.cast(100 * sync_score(Alice, Eve), tf.float32))
+        sync_history_eve.append(score_eve)
+        tf.print("\rSynchronization = ", score, "%   /  Updates = ",
+                 nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
@@ -137,17 +132,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
              "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
-        is_file_binary = is_binary(input_file)
-        decrypt_file = "decipher." + path.splitext(input_file)[1][1:]
-        # cipher with AES
-        aes_encrypt_file(is_file_binary, input_file, output_file,
-                         Alice_key, key_length)
-        # decipher with AES
-        aes_decrypt_file(is_file_binary, output_file,
-                         decrypt_file, Alice_key, key_length)
-        tf.print("encryption and decryption with aes",
-                 key_length, " done.", sep='')
-        if score_eve >= 100:
+        if tf.math.greater_equal(tf.cast(score_eve, tf.float64), tf.constant(100, tf.float64)):
             print("NOTE: Eve synced her machine with Alice's and Bob's!")
         else:
             tf.print("Eve's machine is ", score_eve,
@@ -158,15 +143,16 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     else:
         print("ERROR: cipher impossible; Alice and Bob have different key/IV")
 
-    print("\n\n")
+    print("\r\n\r\n")
 
 
 def main():
-    use_hparams = True
+    # less summaries are logged if MLENCRYPT_HPARAMS is True
+    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 
-    if use_hparams:
+    if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
         HP_N = hp.HParam('tpm_n', hp.IntInterval(4, 24))  # 12
         HP_L = hp.HParam('tpm_l', hp.IntInterval(4, 24))  # 4

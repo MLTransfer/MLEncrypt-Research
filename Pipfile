@@ -6,8 +6,6 @@ verify_ssl = true
 [packages]
 numpy = "*"
 matplotlib = "*"
-pyaescrypt = "*"
-pydicom = "*"
 tensorflow = "*"
 seaborn = "*"
 pandas = "*"

@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from update_rules import hebbian, anti_hebbian, random_walk
 
-from os import remove
+from os import remove, environ
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -30,10 +30,18 @@ def tb_summary(name, data):
 def tb_heatmap(name, data, xaxis, yaxis):
     with tf.name_scope(name):
         _, ax = plt.subplots()
+        min, max = tf.math.reduce_min(data), tf.math.reduce_max(data)
+        ticks = tf.range(min, max+1).numpy()
+        boundaries = tf.range(tf.math.subtract(
+            tf.cast(min, tf.float64), .5), tf.math.add(
+                tf.cast(max, tf.float64), 1.5)).numpy()
+        cmap = plt.get_cmap(lut=max-min+1)
         sns.heatmap(pd.DataFrame(data=data.numpy(),
                                  index=xaxis,
                                  columns=yaxis).transpose(),
-                    ax=ax)
+                    ax=ax,
+                    cmap=cmap,
+                    cbar_kws={"ticks": ticks, "boundaries": boundaries})
         ax.set(xlabel="hidden perceptron", ylabel="input perceptron")
         png_file = f'{name}-heatmap-{tf.summary.experimental.get_step()}.png'
         plt.savefig(png_file)
@@ -64,18 +72,19 @@ class TPM:
     """
     A tree parity machine.
     The machine can be described by the following parameters:
-    K - The number of hidden neurons
-    N - Then number of input neurons connected to each hidden neuron
-    L - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })
-    W - The weight matrix between input and hidden layers. Dimensions : [K, N]
+        K - The number of hidden neurons
+        N - Then number of input neurons connected to each hidden neuron
+        L - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })
+        W - The weight matrix with dimensions [K, N].
     """
 
     def __init__(self, name, K=8, N=12, L=4):
         """
         Args:
-            K: The number of hidden neurons
-            N: Then number of input neurons connected to each hidden neuron
-            L: Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L})"""
+            K: The number of hidden neurons.
+            N: Then number of input neurons connected to each hidden neuron.
+            L: Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L}).
+        """
         self.name = name
         with tf.name_scope(name):
             self.K = tf.constant(K)
@@ -94,7 +103,7 @@ class TPM:
         """
         original = tf.math.sign(tf.math.reduce_sum(
             tf.math.multiply(X, self.W), axis=1))
-        nonzero = tf.where(tf.equal(original, 0), -1, original)
+        nonzero = tf.where(tf.math.equal(original, 0), -1, original)
         return original, nonzero
 
     def get_output(self, X):
@@ -104,13 +113,13 @@ class TPM:
 
         Returns:
             A binary digit tau for a given random vecor.
-
         """
 
         tf.reshape(X, [self.K, self.N])
 
         # compute inner activation sigma, [K]
         sigma, nonzero = self.compute_sigma(X)
+        # compute output of TPM, binary scalar
         tau = tf.math.reduce_prod(nonzero)
 
         with tf.name_scope(self.name):
@@ -128,34 +137,33 @@ class TPM:
         Updates the weights according to the specified update rule.
 
         Args:
-            tau2 - Output bit from the other machine;
-            update_rule - The update rule.
-            Should be one of ['hebbian', 'anti_hebbian', random_walk']
+            tau2: Output bit from the other machine.
+            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or random_walk'.
         """
-        if tf.equal(self.tau, tau2):
-            if tf.equal(update_rule, 'hebbian'):
+        if tf.math.equal(self.tau, tau2):
+            if tf.math.equal(update_rule, 'hebbian'):
                 hebbian(self.W, self.X, self.sigma, self.tau, tau2, self.L)
-            elif tf.equal(update_rule, 'anti_hebbian'):
+            elif tf.math.equal(update_rule, 'anti_hebbian'):
                 anti_hebbian(self.W, self.X, self.sigma,
                              self.tau, tau2, self.L)
-            elif tf.equal(update_rule, 'random_walk'):
+            elif tf.math.equal(update_rule, 'random_walk'):
                 random_walk(self.W, self.X, self.sigma,
                             self.tau, tau2, self.L)
             else:
                 raise Exception("Invalid update rule. Valid update rules are: "
                                 + "\'hebbian\', "
                                 + "\'anti_hebbian\' and "
-                                + "\'random_walk\'."
-                                )
-            with tf.name_scope(self.name):
-                xaxis = tf.range(1, self.K+1)
-                yaxis = tf.range(1, self.N+1)
-                tb_heatmap('weights', self.W, xaxis, yaxis)
-                tb_boxplot('weights', self.W, xaxis)
-                for i in tf.range(self.K):
-                    with tf.name_scope(f'hperceptron{i+1}'):
-                        tb_summary('weights', self.W[i])
-                        tb_summary('sigma', self.sigma)
+                                + "\'random_walk\'.")
+            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+                with tf.name_scope(self.name):
+                    xaxis = tf.range(1, self.K+1)
+                    yaxis = tf.range(1, self.N+1)
+                    tb_heatmap('weights', self.W, xaxis, yaxis)
+                    tb_boxplot('weights', self.W, xaxis)
+                    for i in tf.range(self.K):
+                        with tf.name_scope(f'hperceptron{i+1}'):
+                            tb_summary('weights', self.W[i])
+                            tb_summary('sigma', self.sigma)
 
     def makeKey(self, key_length, iv_length):
         """
@@ -170,9 +178,9 @@ class TPM:
 
         for i in tf.range(self.K):
             for j in tf.range(self.N):
-                if tf.equal(i, j):
-                    iv += tf.as_string(self.W[i, j])
-                key += tf.as_string(self.W[i, j])
+                if tf.math.equal(i, j):
+                    iv += tf.strings.as_string(self.W[i, j])
+                key += tf.strings.as_string(self.W[i, j])
 
         def convert_to_hex_dig(input, is_iv=True):
             return hashlib.sha512(
@@ -182,9 +190,10 @@ class TPM:
 
         current_key = convert_to_hex_dig(key, is_iv=False)
         current_iv = convert_to_hex_dig(iv, is_iv=True)
-        with tf.name_scope(self.name):
-            tf.summary.text('independent variable',
-                            data=current_iv)
-            tf.summary.text('key',
-                            data=current_key)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            with tf.name_scope(self.name):
+                tf.summary.text('independent variable',
+                                data=current_iv)
+                tf.summary.text('key',
+                                data=current_key)
         return (current_key, current_iv)

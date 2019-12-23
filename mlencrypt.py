@@ -1,4 +1,4 @@
-from tpm import TPM
+from tpm import TPM, ProbabilisticTPM
 from datetime import datetime
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
@@ -60,7 +60,9 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
         + f"initialization-vector-length={iv_length}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
-    Eve = TPM('Eve', K, N, L)
+    Eve = ProbabilisticTPM('Eve', K, N, L) if environ["MLENCRYPT_PROBABILISTIC"
+                                                      ] == 'TRUE' else TPM(
+                                                      'Eve', K, N, L)
 
     # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -74,7 +76,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
-    while score < 100:
+    while score < 100 and not tf.reduce_all(tf.math.equal(Alice.W, Bob.W)):
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
@@ -148,7 +150,8 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
 
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True
-    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
+    environ["MLENCRYPT_HPARAMS"] = 'FALSE'
+    environ["MLENCRYPT_PROBABILISTIC"] = 'TRUE'
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 

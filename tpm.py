@@ -1,5 +1,6 @@
 import hashlib
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from update_rules import hebbian, anti_hebbian, random_walk
 
@@ -197,3 +198,20 @@ class TPM:
                 tf.summary.text('key',
                                 data=current_key)
         return (current_key, current_iv)
+
+
+class ProbabilisticTPM(TPM):
+    def __init__(self, name, K=8, N=12, L=4):
+        super().__init__(name, K=8, N=12, L=4)
+        # at step 0, the mean of each probabilistic weight distribution is 0
+        # at step 0, the variance of each probabilistic weight distribution is L(L+1)/3
+        self.W = tfp.distributions.Normal(
+            tf.fill([K, N], 0.), tf.fill([K, N], tf.math.sqrt(L*(L+1)/3)))
+
+    def compute_sigma(self, X):
+        normal = tfp.distributions.Normal(loc=0., scale=1.)
+        mean_wx = 0
+        sd_wx = 1
+        limit = -mean_wx/sd_wx
+        sigma = 1-normal.cdf(limit)
+        return sigma, sigma

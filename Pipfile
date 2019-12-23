@@ -9,6 +9,7 @@ matplotlib = "*"
 tensorflow = "*"
 seaborn = "*"
 pandas = "*"
+tensorflow-probability = "*"
 
 [dev-packages]
 

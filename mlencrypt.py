@@ -55,7 +55,7 @@ def sync_score(TPM1, TPM2):
 
 
 @tf.function
-def run(input_file, update_rule, output_file, K, N, L, key_length=256,
+def run(update_rule, K, N, L, key_length=256,
         iv_length=128):
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
     print(
@@ -128,8 +128,11 @@ def run(input_file, update_rule, output_file, K, N, L, key_length=256,
 
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
-    tf.summary.scalar('time_taken', time_taken)
-    tf.summary.scalar('eve_score', score_eve)
+    if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
+        # only log these if in hparams
+        # creates scatterplot (in scalars) dashboard of metric vs steps
+        tf.summary.scalar('time_taken', time_taken)
+        tf.summary.scalar('eve_score', score_eve)
 
     # results
     tf.print("\nTime taken =", time_taken, "seconds.")
@@ -159,8 +162,6 @@ def run(input_file, update_rule, output_file, K, N, L, key_length=256,
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
-    input_file = 'test.dcm'  # or test.txt
-    output_file = 'out.enc'
 
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
@@ -201,8 +202,7 @@ def main():
                             run_name = "run-%d" % session_num
                             with tf.summary.create_file_writer(
                                     logdir + '/' + run_name).as_default():
-                                run(input_file, update_rule,
-                                    output_file, K, N, L)
+                                run(update_rule, K, N, L)
                                 hp.hparams(current_hparams)
 
                                 session_num += 1
@@ -222,8 +222,7 @@ def main():
             environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
             environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
 
-            run(input_file, update_rule, output_file, K, N, L, key_length,
-                iv_length)
+            run(update_rule, K, N, L, key_length, iv_length)
             tf.summary.trace_export("graph")
 
 

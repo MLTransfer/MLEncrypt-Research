@@ -107,17 +107,9 @@ class TPM:
 
             Each vector has dimension [K].
         """
-        wx = tf.math.reduce_sum(tf.math.multiply(X, self.W), axis=1)
-        original = tf.math.sign(wx)
-        nonzero = tf.Variable(
-            tf.where(tf.math.equal(original, 0), -1, original))
-        if environ["MLENCRYPT_GEOMETRIC"] == 'TRUE' and self.name == 'Eve':
-            # https://www.hindawi.com/journals/scn/2019/8214681/alg2/
-            # https://www.ki.tu-berlin.de/fileadmin/fg135/publikationen/Ruttor_2006_GAN.pdf
-            h_i = tf.math.divide(tf.cast(wx, tf.float64),
-                                 tf.math.sqrt(tf.cast(self.N, tf.float64)))
-            min = tf.math.argmin(tf.math.abs(h_i))
-            nonzero[min].assign(tf.math.negative(nonzero[min]))
+        original = tf.math.sign(tf.math.reduce_sum(
+            tf.math.multiply(X, self.W), axis=1))
+        nonzero = tf.where(tf.math.equal(original, 0), -1, original)
         return original, nonzero
 
     def get_output(self, X):
@@ -226,3 +218,16 @@ class ProbabilisticTPM(TPM):
         limit = -mean_wx/sd_wx
         sigma = 1-normal.cdf(limit)
         return sigma, sigma
+
+
+class GeometricTPM(TPM):
+    def compute_sigma(self, X):
+        wx = tf.math.reduce_sum(tf.math.multiply(X, self.W), axis=1)
+        original = tf.math.sign(wx)
+        nonzero = tf.Variable(
+            tf.where(tf.math.equal(original, 0), -1, original))
+        h_i = tf.math.divide(tf.cast(wx, tf.float64),
+                             tf.math.sqrt(tf.cast(self.N, tf.float64)))
+        min = tf.math.argmin(tf.math.abs(h_i))
+        nonzero[min].assign(tf.math.negative(nonzero[min]))
+        return original, nonzero

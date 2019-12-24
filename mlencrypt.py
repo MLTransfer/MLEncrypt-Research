@@ -1,4 +1,4 @@
-from tpm import TPM, ProbabilisticTPM
+from tpm import TPM, ProbabilisticTPM, GeometricTPM
 from datetime import datetime
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
@@ -62,8 +62,13 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
     Eve = ProbabilisticTPM('Eve', K, N, L) if environ["MLENCRYPT_PROBABILISTIC"
-                                                      ] == 'TRUE' else TPM(
-                                                      'Eve', K, N, L)
+                                                      ] == 'TRUE' else (
+                                                      GeometricTPM('Eve', K, N,
+                                                                   L) if
+                                                                   environ[
+                                                          "MLENCRYPT_GEOMETRIC"
+                                                          ] == 'TRUE' else TPM(
+                                                          'Eve', K, N, L))
 
     # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -153,6 +158,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True
     environ["MLENCRYPT_HPARAMS"] = 'FALSE'
+    # only one of MLENCRYPT_PROBABILISTIC and MLENCRYPT_GEOMETRIC may be True
     environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
     environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
     input_file = 'test.dcm'  # or test.txt

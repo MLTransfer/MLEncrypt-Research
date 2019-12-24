@@ -54,7 +54,9 @@ def sync_score(TPM1, TPM2):
     return rho
 
 
-def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
+@tf.function
+def run(input_file, update_rule, output_file, K, N, L, key_length=256,
+        iv_length=128):
     # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
     print(
         f"Creating machines: K={K}, N={N}, L={L}, key-length={key_length}, "
@@ -63,12 +65,8 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
     Bob = TPM('Bob', K, N, L)
     Eve = ProbabilisticTPM('Eve', K, N, L) if environ["MLENCRYPT_PROBABILISTIC"
                                                       ] == 'TRUE' else (
-                                                      GeometricTPM('Eve', K, N,
-                                                                   L) if
-                                                                   environ[
-                                                          "MLENCRYPT_GEOMETRIC"
-                                                          ] == 'TRUE' else TPM(
-                                                          'Eve', K, N, L))
+        GeometricTPM('Eve', K, N, L) if environ["MLENCRYPT_GEOMETRIC"]
+        == 'TRUE' else TPM('Eve', K, N, L))
 
     # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -106,9 +104,12 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
         nb_updates.assign_add(1, use_locking=True)
         tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
-        # Eve would update only if tauA = tauB = tauE
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
+            nb_eve_updates.assign_add(1, use_locking=True)
+        elif (tauA == tauB != tauE) and environ[
+                "MLENCRYPT_GEOMETRIC"] == 'TRUE':
+            Eve.update(tauA, update_rule, geometric=True)
             nb_eve_updates.assign_add(1, use_locking=True)
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             with tf.name_scope(Eve.name):
@@ -157,10 +158,7 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
 
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True
-    environ["MLENCRYPT_HPARAMS"] = 'FALSE'
-    # only one of MLENCRYPT_PROBABILISTIC and MLENCRYPT_GEOMETRIC may be True
-    environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
-    environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
+    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 
@@ -170,13 +168,11 @@ def main():
         HP_L = hp.HParam('tpm_l', hp.IntInterval(4, 24))  # 4
         HP_UPDATE_RULE = hp.HParam('update_rule', hp.Discrete(
             ['hebbian', 'anti_hebbian', 'random_walk']))  # hebbian
-        HP_KEY_LENGTH = hp.HParam(
-            'key_length', hp.Discrete([128, 192, 256]))  # 256
-        HP_IV_LENGTH = hp.HParam('iv_length', hp.Discrete(
-            range(0, 256 + 1, 4)))  # 128
+        # add probabilistic later
+        HP_ATTACK = hp.HParam('attack', hp.Discrete(
+            ['none', 'geometric']))  # none
 
-        hparams = [HP_UPDATE_RULE, HP_K, HP_N,
-                   HP_L, HP_KEY_LENGTH, HP_IV_LENGTH]
+        hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
 
         logdir = 'logs/hparams/' + str(datetime.now())
         with tf.summary.create_file_writer(logdir).as_default():
@@ -190,41 +186,45 @@ def main():
             for N in (HP_N.domain.min_value, HP_N.domain.max_value):
                 for L in (HP_L.domain.min_value, HP_L.domain.max_value):
                     for update_rule in HP_UPDATE_RULE.domain.values:
-                        for key_length in HP_KEY_LENGTH.domain.values:
-                            for iv_length in HP_IV_LENGTH.domain.values:
-                                current_hparams = {
-                                    HP_K: K,
-                                    HP_N: N,
-                                    HP_L: L,
-                                    HP_UPDATE_RULE: update_rule,
-                                    HP_KEY_LENGTH: key_length,
-                                    HP_IV_LENGTH: iv_length
-                                }
-                                run_name = "run-%d" % session_num
-                                with tf.summary.create_file_writer(
-                                        logdir + '/' + run_name).as_default():
-                                    run(input_file, update_rule, output_file,
-                                        K, N, L, key_length, iv_length)
-                                    hp.hparams(current_hparams)
+                        for attack in HP_ATTACK.domain.values:
+                            current_hparams = {
+                                HP_K: K,
+                                HP_N: N,
+                                HP_L: L,
+                                HP_UPDATE_RULE: update_rule,
+                                HP_ATTACK: attack
+                            }
+                            environ["MLENCRYPT_GEOMETRIC"] = 'TRUE' if attack \
+                                == 'geometric' else 'FALSE'
+                            environ["MLENCRYPT_PROBABILISTIC"] = 'TRUE' if \
+                                attack == 'probabilistic' else 'FALSE'
+                            run_name = "run-%d" % session_num
+                            with tf.summary.create_file_writer(
+                                    logdir + '/' + run_name).as_default():
+                                run(input_file, update_rule,
+                                    output_file, K, N, L)
+                                hp.hparams(current_hparams)
 
-                                    session_num += 1
+                                session_num += 1
         print(f'Wrote log file to {logdir}')
     else:
-        logdir = 'logs/' + str(datetime.now())
-        summary_writer = tf.summary.create_file_writer(logdir)
-        summary_writer.set_as_default()
         tf.summary.trace_on()
+        logdir = 'logs/' + str(datetime.now())
+        with tf.summary.create_file_writer(logdir).as_default():
 
-        K = 8
-        N = 12
-        L = 4
-        update_rule = 'hebbian'  # or anti_hebbian or random_walk
-        key_length = 256
-        iv_length = 128
+            K = 8
+            N = 12
+            L = 4
+            update_rule = 'hebbian'  # or anti_hebbian or random_walk
+            key_length = 256
+            iv_length = 128
+            # only one of MLENCRYPT_PROBABILISTIC and MLENCRYPT_GEOMETRIC may be True
+            environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
+            environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
 
-        run(input_file, update_rule, output_file, K, N, L, key_length,
-            iv_length)
-        tf.summary.trace_export("graph")
+            run(input_file, update_rule, output_file, K, N, L, key_length,
+                iv_length)
+            tf.summary.trace_export("graph")
 
 
 if __name__ == "__main__":

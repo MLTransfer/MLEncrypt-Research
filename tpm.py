@@ -130,7 +130,7 @@ class TPM:
 
         with tf.name_scope(self.name):
             self.X = X
-            self.sigma = sigma
+            self.sigma = tf.Variable(sigma)
             self.tau = tau
 
         return tau
@@ -143,8 +143,8 @@ class TPM:
         Updates the weights according to the specified update rule.
 
         Args:
-            tau2: Output bit from the other machine.
-            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or random_walk'.
+            tau2: Output bit from the other machine, must be -1 or 1.
+            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
         """
         if tf.math.equal(self.tau, tau2):
             if tf.math.equal(update_rule, 'hebbian'):
@@ -221,13 +221,49 @@ class ProbabilisticTPM(TPM):
 
 
 class GeometricTPM(TPM):
-    def compute_sigma(self, X):
-        wx = tf.math.reduce_sum(tf.math.multiply(X, self.W), axis=1)
+    def update_sigma(self):
+        """
+        Updates sigma using the geometric algorithm.
+        """
+        wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.W), axis=1)
         original = tf.math.sign(wx)
-        nonzero = tf.Variable(
-            tf.where(tf.math.equal(original, 0), -1, original))
         h_i = tf.math.divide(tf.cast(wx, tf.float64),
                              tf.math.sqrt(tf.cast(self.N, tf.float64)))
         min = tf.math.argmin(tf.math.abs(h_i))
-        nonzero[min].assign(tf.math.negative(nonzero[min]))
-        return original, nonzero
+        self.sigma[min].assign(tf.math.negative(original[min]))
+
+    def update(self, tau2, update_rule='hebbian', geometric=False):
+        """
+        Updates the weights according to the specified update rule.
+
+        Args:
+            tau2: Output bit from the other machine, must be -1 or 1.
+            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
+        """
+        if geometric:
+            self.update_sigma()
+
+        if tf.math.equal(self.tau, tau2):
+            if tf.math.equal(update_rule, 'hebbian'):
+                hebbian(self.W, self.X, self.sigma, self.tau, tau2, self.L)
+            elif tf.math.equal(update_rule, 'anti_hebbian'):
+                anti_hebbian(self.W, self.X, self.sigma,
+                             self.tau, tau2, self.L)
+            elif tf.math.equal(update_rule, 'random_walk'):
+                random_walk(self.W, self.X, self.sigma,
+                            self.tau, tau2, self.L)
+            else:
+                raise Exception("Invalid update rule. Valid update rules are: "
+                                + "\'hebbian\', "
+                                + "\'anti_hebbian\' and "
+                                + "\'random_walk\'.")
+            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+                with tf.name_scope(self.name):
+                    xaxis = tf.range(1, self.K+1)
+                    yaxis = tf.range(1, self.N+1)
+                    tb_heatmap('weights', self.W, xaxis, yaxis)
+                    tb_boxplot('weights', self.W, xaxis)
+                    for i in tf.range(self.K):
+                        with tf.name_scope(f'hperceptron{i+1}'):
+                            tb_summary('weights', self.W[i])
+                            tb_summary('sigma', self.sigma)

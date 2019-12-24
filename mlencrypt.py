@@ -213,6 +213,7 @@ def main():
         logdir = 'logs/' + str(datetime.now())
         summary_writer = tf.summary.create_file_writer(logdir)
         summary_writer.set_as_default()
+        tf.summary.trace_on()
 
         K = 8
         N = 12
@@ -223,6 +224,7 @@ def main():
 
         run(input_file, update_rule, output_file, K, N, L, key_length,
             iv_length)
+        tf.summary.trace_export("graph")
 
 
 if __name__ == "__main__":

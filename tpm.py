@@ -75,7 +75,7 @@ class TPM:
     The machine can be described by the following parameters:
         K - The number of hidden neurons
         N - Then number of input neurons connected to each hidden neuron
-        L - Defines the range of each weight ({-L, ..., -2, -1, 0, 1, 2, ..., +L })
+        L - Defines the range of each weight ({-L, ..., -1, 0, 1, ..., +L })
         W - The weight matrix with dimensions [K, N].
     """
 
@@ -100,11 +100,24 @@ class TPM:
         Args:
             X: A random vector which is the input for TPM.
         Returns:
-            A tuple of the vector of the outputs of each hidden perceptron and the vector with all 0s replaced with -1s.
+            A tuple of the vector of the outputs of each hidden perceptron and
+            the vector with all 0s replaced with -1s. For example:
+
+            ([-1, -1, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
+
+            Each vector has dimension [K].
         """
-        original = tf.math.sign(tf.math.reduce_sum(
-            tf.math.multiply(X, self.W), axis=1))
-        nonzero = tf.where(tf.math.equal(original, 0), -1, original)
+        wx = tf.math.reduce_sum(tf.math.multiply(X, self.W), axis=1)
+        original = tf.math.sign(wx)
+        nonzero = tf.Variable(
+            tf.where(tf.math.equal(original, 0), -1, original))
+        if environ["MLENCRYPT_GEOMETRIC"] == 'TRUE' and self.name == 'Eve':
+            # https://www.hindawi.com/journals/scn/2019/8214681/alg2/
+            # https://www.ki.tu-berlin.de/fileadmin/fg135/publikationen/Ruttor_2006_GAN.pdf
+            h_i = tf.math.divide(tf.cast(wx, tf.float64),
+                                 tf.math.sqrt(tf.cast(self.N, tf.float64)))
+            min = tf.math.argmin(tf.math.abs(h_i))
+            nonzero[min].assign(tf.math.negative(nonzero[min]))
         return original, nonzero
 
     def get_output(self, X):
@@ -203,8 +216,6 @@ class TPM:
 class ProbabilisticTPM(TPM):
     def __init__(self, name, K=8, N=12, L=4):
         super().__init__(name, K=8, N=12, L=4)
-        # at step 0, the mean of each probabilistic weight distribution is 0
-        # at step 0, the variance of each probabilistic weight distribution is L(L+1)/3
         self.W = tfp.distributions.Normal(
             tf.fill([K, N], 0.), tf.fill([K, N], tf.math.sqrt(L*(L+1)/3)))
 

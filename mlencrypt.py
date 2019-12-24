@@ -43,7 +43,8 @@ def sync_score(TPM1, TPM2):
                           )
                       ))
     epsilon = tf.multiply(tf.constant(
-        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho), tf.float32))
+        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho),
+                                                          tf.float32))
 
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
         with tf.name_scope(f'{TPM1.name} + {TPM2.name}'):
@@ -134,7 +135,8 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
              "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
-        if tf.math.greater_equal(tf.cast(score_eve, tf.float64), tf.constant(100, tf.float64)):
+        if tf.math.greater_equal(tf.cast(score_eve, tf.float64), tf.constant(
+                100, tf.float64)):
             print("NOTE: Eve synced her machine with Alice's and Bob's!")
         else:
             tf.print("Eve's machine is ", score_eve,
@@ -151,7 +153,8 @@ def run(input_file, update_rule, output_file, K, N, L, key_length, iv_length):
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True
     environ["MLENCRYPT_HPARAMS"] = 'FALSE'
-    environ["MLENCRYPT_PROBABILISTIC"] = 'TRUE'
+    environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
+    environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
     input_file = 'test.dcm'  # or test.txt
     output_file = 'out.enc'
 
@@ -192,7 +195,8 @@ def main():
                                     HP_IV_LENGTH: iv_length
                                 }
                                 run_name = "run-%d" % session_num
-                                with tf.summary.create_file_writer(logdir + '/' + run_name).as_default():
+                                with tf.summary.create_file_writer(
+                                        logdir + '/' + run_name).as_default():
                                     run(input_file, update_rule, output_file,
                                         K, N, L, key_length, iv_length)
                                     hp.hparams(current_hparams)

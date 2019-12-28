@@ -94,9 +94,11 @@ def sync_score(TPM1, TPM2):
                                    (2 * tf.cast(TPM1.L, tf.float64))
                                    )
                                ))
+    tf.print(TPM1.name, TPM1.W)
+    tf.print(TPM2.name, TPM2.W)
 
-    epsilon = tf.multiply(tf.constant(
-        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho),
+    epsilon = tf.math.multiply(tf.constant(
+        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.math.acos(rho),
                                                           tf.float32))
 
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
@@ -110,8 +112,10 @@ def sync_score(TPM1, TPM2):
 @tf.function
 def run(update_rule, K, N, L, key_length=256, iv_length=128):
     print(
-        f"Creating machines: K={K}, N={N}, L={L}, key-length={key_length}, "
+        f"Creating machines: K={K}, N={N}, L={L}, "
+        + f"key-length={key_length}, "
         + f"initialization-vector-length={iv_length}, "
+        + f"update-rule={update_rule}, "
         + f"attack={environ['MLENCRYPT_ATTACK']}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
@@ -203,7 +207,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
     else:
         print("ERROR: cipher impossible; Alice and Bob have different key/IV")
 
-    print("\r\n\r\n")
+    print("\n\n")
 
 
 def main():

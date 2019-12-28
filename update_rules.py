@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-# Update rules for tree parity machine
 import tensorflow as tf
 
 
 def theta(t1, t2):
     """
     Args:
-        t1: First value to compare.
-        t2: Second value to compare.
+        t1 (int): First value to compare.
+        t2 (int): Second value to compare.
 
     Returns:
-        1 if t1 and t2 are equal, 0 otherwise.
+        int: 1 if t1 and t2 are equal, 0 otherwise.
     """
-    return tf.cast(tf.math.equal(t1, t2), tf.int64)
+    # tf.cast(tf.math.equal(t1, t2), tf.int64)
+    # tf.where(tf.math.equal(t1, t2), t1, t2)
+    #
+    return tf.where(tf.math.equal(t1, t2), t1, t2)
 
 
 def hebbian(W, X, sigma, tau1, tau2, l):

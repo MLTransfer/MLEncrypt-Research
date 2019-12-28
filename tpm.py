@@ -70,21 +70,12 @@ def tb_boxplot(name, data, xaxis):
 
 
 class TPM:
-    """
-    A tree parity machine.
-    The machine can be described by the following parameters:
-        K: The number of hidden neurons
-        N: Then number of input neurons connected to each hidden neuron
-        L: Defines the range of each weight ({-L, ..., -1, 0, 1, ..., +L })
-        W: The weight matrix with dimensions [K, N].
-    """
-
     def __init__(self, name, K=8, N=12, L=4):
         """
         Args:
-            K: The number of hidden neurons.
-            N: Then number of input neurons connected to each hidden neuron.
-            L: Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L}).
+            K (int): The number of hidden neurons.
+            N (int): Then number of input neurons connected to each hidden neuron.
+            L (int): Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L}).
         """
         self.name = name
         with tf.name_scope(name):
@@ -139,8 +130,7 @@ class TPM:
         return self.get_output(X)
 
     def update(self, tau2, update_rule='hebbian'):
-        """
-        Updates the weights according to the specified update rule.
+        """Updates the weights according to the specified update rule.
 
         Args:
             tau2: Output bit from the other machine, must be -1 or 1.
@@ -172,10 +162,12 @@ class TPM:
                             tb_summary('sigma', self.sigma)
 
     def makeKey(self, key_length, iv_length):
-        """
+        """Creates a key and IV based on the weights of this TPM.
         Args:
-            key_length: Length of key, must be 128, 192, or 256.
-            iv_length: Length of IV, must be a multiple of 4 between 0 and 256, inclusive.
+            key_length: Length of the key.
+                Must be 128, 192, or 256.
+            iv_length: Length of the independent variable.
+                Must be a multiple of 4 between 0 and 256, inclusive.
         Returns:
             The key and IV based on the TPM's weights.
         """
@@ -207,9 +199,10 @@ class TPM:
 
 class ProbabilisticTPM(TPM):
     """
-        W: A [K, N, 2L+1] matrix representing the PDF of the weight distribution.
-        mu_W: A [K, N] matrix of the averages of the weight distributions.
-        sigma_W: A [K, N] matrix of the standard deviations of the weight distributions.
+    Attributes:
+        W: [K, N, 2L+1] matrix representing the PDF of the weight distribution.
+        mu_W: [K, N] matrix of the averages of the weight distributions.
+        sigma_W: [K, N] matrix of the standard deviations of the weight distributions.
     """
 
     def __init__(self, name, K=8, N=12, L=4):
@@ -218,14 +211,15 @@ class ProbabilisticTPM(TPM):
             tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
 
     def normalize_weights(self, i=-1, j=-1):
-        """
+        """Normalizes probability distributions.
+
         Normalizes the probability distribution associated with W[i, j]. If
         negative indeces i, j are provided, the normalization is carried out
         for all the probability distributions.
 
         Args:
-            i: Index of the hidden perceptron distribution to normalize.
-            j: Index of the input perceptron distribution to normalize.
+            i (int): Index of the hidden perceptron distribution to normalize.
+            j (int): Index of the input perceptron distribution to normalize.
         """
         if (j < 0 and i < 0):
             self.W.assign(tf.map_fn(lambda x: tf.math.reduce_mean(x), self.W))
@@ -236,7 +230,7 @@ class ProbabilisticTPM(TPM):
     def get_most_probable_weight(self):
         """
         Returns:
-            A [K, N] matrix with each cell representing the weight which has
+            [K, N] matrix with each cell representing the weight which has
             the largest probability of existing in the defender's TPM.
         """
         mPW = tf.Variable(tf.zeros([self.K, self.N], tf.int64))
@@ -257,8 +251,10 @@ class ProbabilisticTPM(TPM):
 
 class GeometricTPM(TPM):
     def update_sigma(self):
-        """
-        Updates sigma using the geometric algorithm.
+        """Updates sigma using the geometric algorithm.
+
+        Negates the sigma value of the hidden perceptron with the lowest
+        current state.
         """
         wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.W), axis=1)
         original = tf.math.sign(wx)
@@ -268,8 +264,7 @@ class GeometricTPM(TPM):
         self.sigma[min].assign(tf.math.negative(original[min]))
 
     def update(self, tau2, update_rule='hebbian', geometric=False):
-        """
-        Updates the weights according to the specified update rule.
+        """Updates the weights according to the specified update rule.
 
         Args:
             tau2: Output bit from the other machine, must be -1 or 1.

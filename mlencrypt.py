@@ -213,11 +213,10 @@ def main():
         HP_L = hp.HParam('tpm_l', hp.IntInterval(4, 24))  # 4
         HP_UPDATE_RULE = hp.HParam('update_rule', hp.Discrete(
             ['hebbian', 'anti_hebbian', 'random_walk']))  # hebbian
-        # add probabilistic later
         HP_ATTACK = hp.HParam('attack', hp.Discrete(
             ['none', 'geometric']))  # none
 
-        hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
+        hparams = [HP_K, HP_N, HP_L, HP_UPDATE_RULE, HP_ATTACK]
 
         logdir = 'logs/hparams/' + str(datetime.now())
         with tf.summary.create_file_writer(logdir).as_default():
@@ -227,9 +226,9 @@ def main():
                          hp.Metric('eve_score', display_name='Eve sync')]
             )
         session_num = 0
-        for K in (HP_K.domain.min_value, HP_K.domain.max_value):
-            for N in (HP_N.domain.min_value, HP_N.domain.max_value):
-                for L in (HP_L.domain.min_value, HP_L.domain.max_value):
+        for K in HP_K.domain.values:
+            for N in HP_N.domain.values:
+                for L in HP_L.domain.values:
                     for update_rule in HP_UPDATE_RULE.domain.values:
                         for attack in HP_ATTACK.domain.values:
                             current_hparams = {
@@ -247,9 +246,11 @@ def main():
                                 hp.hparams(current_hparams)
 
                                 session_num += 1
+
         print(f'Wrote log file to {logdir}')
     else:
         tf.summary.trace_on()
+        # tf.python.eager.profiler.start()
         logdir = 'logs/' + str(datetime.now())
         with tf.summary.create_file_writer(logdir).as_default():
             K = 8
@@ -258,10 +259,12 @@ def main():
             update_rule = 'hebbian'  # or anti_hebbian or random_walk
             key_length = 256
             iv_length = 128
-            environ["MLENCRYPT_ATTACK"] = 'PROBABILISTIC'
+            environ["MLENCRYPT_ATTACK"] = 'NONE'
 
             run(update_rule, K, N, L, key_length, iv_length)
             tf.summary.trace_export("graph")
+            # profiler_result = tf.python.eager.profiler.stop()
+            # tf.python.eager.profiler.save(logdir, profiler_result)
 
 
 if __name__ == "__main__":

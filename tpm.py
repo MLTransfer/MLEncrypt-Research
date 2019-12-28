@@ -1,6 +1,5 @@
 import hashlib
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 from update_rules import hebbian, anti_hebbian, random_walk
 
@@ -32,11 +31,11 @@ def tb_heatmap(name, data, xaxis, yaxis):
     with tf.name_scope(name):
         _, ax = plt.subplots()
         min, max = tf.math.reduce_min(data), tf.math.reduce_max(data)
-        ticks = tf.range(min, max+1).numpy()
+        ticks = tf.range(min, max + 1).numpy()
         boundaries = tf.range(tf.math.subtract(
             tf.cast(min, tf.float64), .5), tf.math.add(
                 tf.cast(max, tf.float64), 1.5)).numpy()
-        cmap = plt.get_cmap(lut=max-min+1)
+        cmap = plt.get_cmap(lut=max - min + 1)
         sns.heatmap(pd.DataFrame(data=data.numpy(),
                                  index=xaxis,
                                  columns=yaxis).transpose(),
@@ -162,8 +161,8 @@ class TPM:
                                 + "\'random_walk\'.")
             if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
                 with tf.name_scope(self.name):
-                    xaxis = tf.range(1, self.K+1)
-                    yaxis = tf.range(1, self.N+1)
+                    xaxis = tf.range(1, self.K + 1)
+                    yaxis = tf.range(1, self.N + 1)
                     tb_heatmap('weights', self.W, xaxis, yaxis)
                     tb_boxplot('weights', self.W, xaxis)
                     for i in tf.range(self.K):
@@ -214,7 +213,7 @@ class ProbabilisticTPM(TPM):
 
     def __init__(self, name, K=8, N=12, L=4):
         super().__init__(name, K=8, N=12, L=4)
-        self.W = tf.fill([K, N, 2*L+1], 1./(2*L+1))
+        self.W = tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1))
 
     def normalize_weights(self, i=-1, j=-1):
         """
@@ -243,16 +242,8 @@ class ProbabilisticTPM(TPM):
         for i in tf.range(self.K):
             for j in tf.range(self.N):
                 mPW.assign(
-                    tf.map_fn(lambda x: tf.argmax(x)-self.L, self.W[i, j]))
+                    tf.map_fn(lambda x: tf.argmax(x) - self.L, self.W[i, j]))
         return mPW
-
-    def compute_sigma(self, X):
-        normal = tfp.distributions.Normal(loc=0., scale=1.)
-        mean_wx = 0
-        sd_wx = 1
-        limit = -mean_wx/sd_wx
-        sigma = 1-normal.cdf(limit)
-        return sigma, sigma
 
     def update(self, update_rule="hebbian"):
         """
@@ -301,8 +292,8 @@ class GeometricTPM(TPM):
                                 + "\'random_walk\'.")
             if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
                 with tf.name_scope(self.name):
-                    xaxis = tf.range(1, self.K+1)
-                    yaxis = tf.range(1, self.N+1)
+                    xaxis = tf.range(1, self.K + 1)
+                    yaxis = tf.range(1, self.N + 1)
                     tb_heatmap('weights', self.W, xaxis, yaxis)
                     tb_boxplot('weights', self.W, xaxis)
                     for i in tf.range(self.K):

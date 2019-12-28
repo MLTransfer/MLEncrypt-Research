@@ -9,6 +9,66 @@ from os import environ
 tf.config.experimental_run_functions_eagerly(True)
 
 
+def compute_overlap_matrix(N, L, w1, w2):
+    """
+    Computes the overlap matrix for the two vectors provided.
+
+    Args:
+        N: The number of inputs to the hidden units.
+        L: The depth of the weights.
+        w1: The weights of a specific input perceptron in the first TPM.
+        w2: The weights of a specific input perceptron in the second TPM.
+
+    Returns:
+        The overlap matrix of the vectors.
+    """
+    # shape_f = tf.constant([2 * L + 1, 2 * L + 1])
+    f = tf.Variable(tf.constant(
+        tf.zeros([2 * L + 1, 2 * L + 1], dtype=tf.float64)))
+
+    one_over_n = tf.constant(tf.math.divide(
+        1., tf.cast(N, dtype=tf.float64)), dtype=tf.float64)
+    for i in tf.range(N):
+        r, c = w1[i] + tf.cast(L, tf.int64), w2[i] + tf.cast(L, tf.int64)
+        f[r, c].assign(f[r, c] + one_over_n)
+
+    return f
+
+
+def compute_overlap_matrix_probabilistic(N, L, w1, w2):
+    f = tf.Variable(tf.zeros([2 * L + 1, 2 * L + 1], tf.float64))
+    for i in tf.range(N):
+        for j in tf.range(2 * L + 1):
+            f[w1[i] + L, j].assign(f[w1[i] + L, j] + w2[i][j])
+    return f
+
+
+def compute_overlap_from_matrix(N, L, f):
+    """
+    Computes the overlap of two vectors from their overlap matrix.
+
+    Args:
+        N: The number of inputs per hidden unit.
+        L: The depth of the weights.
+        f: The overlap matrix.
+    """
+    R = tf.Variable(0., dtype=tf.float64)
+    Q1 = tf.Variable(0., dtype=tf.float64)
+    Q2 = tf.Variable(0., dtype=tf.float64)
+    for i in tf.range(2 * L + 1):
+        for j in tf.range(2 * L + 1):
+            Q1.assign_add(tf.cast(i - L, tf.float64)
+                          * tf.cast(i - L, tf.float64) * f[i, j])
+            Q2.assign_add(tf.cast(j - L, tf.float64)
+                          * tf.cast(j - L, tf.float64) * f[i, j])
+            R.assign_add(tf.cast(i - L, tf.float64)
+                         * tf.cast(j - L, tf.float64) * f[i, j])
+
+    rho = tf.constant(tf.math.divide(
+        R, tf.math.sqrt(tf.math.multiply(Q1, Q2))))
+    return rho
+
+
 @tf.function
 def sync_score(TPM1, TPM2):
     """
@@ -18,30 +78,13 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
+    rho = tf.Variable(0., dtype=tf.float64)
 
-    # Q_tpm1, Q_tpm2, and R are standard order parameters for online learning
-    # Q_tpm1 = tf.math.divide(tf.matmul(TPM1.W, TPM1.W, transpose_a=True), N)
-    # Q_tpm2 = tf.math.divide(tf.matmul(TPM2.W, TPM2.W, transpose_a=True), N)
-    # R = tf.math.divide(tf.matmul(TPM1.W, TPM2.W, transpose_a=True), N)
-    # rho = tf.math.divide(R, tf.matrix_square_root(
-    #     tf.matmul(Q_tpm1, Q_tpm2)))
+    for i in tf.range(TPM1.K):
+        f = compute_overlap_matrix(TPM1.N, TPM1.L, TPM1.W[i], TPM2.W[i])
+        rho.assign_add(tf.math.divide(compute_overlap_from_matrix(
+            TPM1.N, TPM1.L, f), tf.cast(TPM1.K, tf.float64)))
 
-    # rho = tf.math.divide(tf.cast(tf.matmul(TPM1.W, TPM2.W, transpose_a=True), tf.float32),
-    #                      tf.multiply(
-    #     tf.matrix_square_root(
-    #         tf.cast(tf.matmul(TPM1.W, TPM1.W, transpose_a=True), tf.float32)),
-    #     tf.matrix_square_root(
-    #         tf.cast(tf.matmul(TPM2.W, TPM2.W, transpose_a=True), tf.float32)),
-    #     ))
-
-    rho = tf.subtract(1,
-                      tf.math.reduce_mean(
-                          tf.divide(
-                              tf.cast(tf.math.abs(tf.subtract(
-                                  TPM1.W, TPM2.W)), tf.float64),
-                              (2 * tf.cast(TPM1.L, tf.float64))
-                          )
-                      ))
     epsilon = tf.multiply(tf.constant(
         tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho),
                                                           tf.float32))
@@ -63,10 +106,11 @@ def run(update_rule, K, N, L, key_length=256,
         + f"initialization-vector-length={iv_length}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
-    Eve = ProbabilisticTPM('Eve', K, N, L) if environ["MLENCRYPT_PROBABILISTIC"
-                                                      ] == 'TRUE' else (
-        GeometricTPM('Eve', K, N, L) if environ["MLENCRYPT_GEOMETRIC"]
-        == 'TRUE' else TPM('Eve', K, N, L))
+    Eve = ProbabilisticTPM('Eve', K, N, L) if environ[
+        "MLENCRYPT_ATTACK"] == 'PROBABILISTIC' else (
+        GeometricTPM('Eve', K, N, L) if environ[
+            "MLENCRYPT_ATTACK"] == 'GEOMETRIC' else
+        TPM('Eve', K, N, L))
 
     # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -108,7 +152,7 @@ def run(update_rule, K, N, L, key_length=256,
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
         elif (tauA == tauB != tauE) and environ[
-                "MLENCRYPT_GEOMETRIC"] == 'TRUE':
+                "MLENCRYPT_ATTACK"] == 'GEOMETRIC':
             Eve.update(tauA, update_rule, geometric=True)
             nb_eve_updates.assign_add(1, use_locking=True)
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
@@ -160,8 +204,8 @@ def run(update_rule, K, N, L, key_length=256,
 
 
 def main():
-    # less summaries are logged if MLENCRYPT_HPARAMS is True
-    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
+    # less summaries are logged if MLENCRYPT_HPARAMS is True (for efficiency)
+    environ["MLENCRYPT_HPARAMS"] = 'FALSE'
 
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
@@ -195,10 +239,7 @@ def main():
                                 HP_UPDATE_RULE: update_rule,
                                 HP_ATTACK: attack
                             }
-                            environ["MLENCRYPT_GEOMETRIC"] = 'TRUE' if attack \
-                                == 'geometric' else 'FALSE'
-                            environ["MLENCRYPT_PROBABILISTIC"] = 'TRUE' if \
-                                attack == 'probabilistic' else 'FALSE'
+                            environ["MLENCRYPT_ATTACK"] = attack.upper()
                             run_name = "run-%d" % session_num
                             with tf.summary.create_file_writer(
                                     logdir + '/' + run_name).as_default():
@@ -211,16 +252,13 @@ def main():
         tf.summary.trace_on()
         logdir = 'logs/' + str(datetime.now())
         with tf.summary.create_file_writer(logdir).as_default():
-
             K = 8
             N = 12
             L = 4
             update_rule = 'hebbian'  # or anti_hebbian or random_walk
             key_length = 256
             iv_length = 128
-            # only one of MLENCRYPT_PROBABILISTIC and MLENCRYPT_GEOMETRIC may be True
-            environ["MLENCRYPT_PROBABILISTIC"] = 'FALSE'
-            environ["MLENCRYPT_GEOMETRIC"] = 'TRUE'
+            environ["MLENCRYPT_ATTACK"] = 'PROBABILISTIC'
 
             run(update_rule, K, N, L, key_length, iv_length)
             tf.summary.trace_export("graph")

@@ -73,10 +73,10 @@ class TPM:
     """
     A tree parity machine.
     The machine can be described by the following parameters:
-        K - The number of hidden neurons
-        N - Then number of input neurons connected to each hidden neuron
-        L - Defines the range of each weight ({-L, ..., -1, 0, 1, ..., +L })
-        W - The weight matrix with dimensions [K, N].
+        K: The number of hidden neurons
+        N: Then number of input neurons connected to each hidden neuron
+        L: Defines the range of each weight ({-L, ..., -1, 0, 1, ..., +L })
+        W: The weight matrix with dimensions [K, N].
     """
 
     def __init__(self, name, K=8, N=12, L=4):
@@ -206,10 +206,45 @@ class TPM:
 
 
 class ProbabilisticTPM(TPM):
+    """
+        W: A [K, N, 2L+1] matrix representing the PDF of the weight distribution.
+        mu_W: A [K, N] matrix of the averages of the weight distributions.
+        sigma_W: A [K, N] matrix of the standard deviations of the weight distributions.
+    """
+
     def __init__(self, name, K=8, N=12, L=4):
         super().__init__(name, K=8, N=12, L=4)
-        self.W = tfp.distributions.Normal(
-            tf.fill([K, N], 0.), tf.fill([K, N], tf.math.sqrt(L*(L+1)/3)))
+        self.W = tf.fill([K, N, 2*L+1], 1./(2*L+1))
+
+    def normalize_weights(self, i=-1, j=-1):
+        """
+        Normalizes the probability distribution associated with W[i, j]. If
+        negative indeces i, j are provided, the normalization is carried out
+        for all the probability distributions.
+
+        Args:
+            i: Index of the hidden perceptron distribution to normalize.
+            j: Index of the input perceptron distribution to normalize.
+        """
+        if (j < 0 and i < 0):
+            self.W.assign(tf.map_fn(lambda x: tf.math.reduce_mean(x), self.W))
+        else:
+            self.W[i, j].assign(
+                tf.map_fn(lambda x: tf.math.reduce_mean(x), self.W[i, j]))
+
+    def get_most_probable_weight(self):
+        """
+        Returns:
+            A [K, N] matrix with each cell representing the weight which has
+            the largest probability of existing in the defender's TPM.
+        """
+        mPW = tf.Variable(tf.zeros([self.K, self.N], tf.int64))
+        # TODO: more efficient way to do this?
+        for i in tf.range(self.K):
+            for j in tf.range(self.N):
+                mPW.assign(
+                    tf.map_fn(lambda x: tf.argmax(x)-self.L, self.W[i, j]))
+        return mPW
 
     def compute_sigma(self, X):
         normal = tfp.distributions.Normal(loc=0., scale=1.)
@@ -218,6 +253,13 @@ class ProbabilisticTPM(TPM):
         limit = -mean_wx/sd_wx
         sigma = 1-normal.cdf(limit)
         return sigma, sigma
+
+    def update(self, update_rule="hebbian"):
+        """
+        Args:
+            update_rule: Must be "monte_carlo" or "hebbian".
+        """
+        pass
 
 
 class GeometricTPM(TPM):
@@ -229,7 +271,7 @@ class GeometricTPM(TPM):
         original = tf.math.sign(wx)
         h_i = tf.math.divide(tf.cast(wx, tf.float64),
                              tf.math.sqrt(tf.cast(self.N, tf.float64)))
-        min = tf.math.argmin(tf.math.abs(h_i))
+        min = tf.math.argmin(tf.math.abs(h_i))  # index of min
         self.sigma[min].assign(tf.math.negative(original[min]))
 
     def update(self, tau2, update_rule='hebbian', geometric=False):

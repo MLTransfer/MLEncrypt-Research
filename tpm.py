@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import hashlib
 import tensorflow as tf
 
@@ -213,7 +214,8 @@ class ProbabilisticTPM(TPM):
 
     def __init__(self, name, K=8, N=12, L=4):
         super().__init__(name, K=8, N=12, L=4)
-        self.W = tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1))
+        self.W = tf.Variable(
+            tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
 
     def normalize_weights(self, i=-1, j=-1):
         """

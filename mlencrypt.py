@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from tpm import TPM, ProbabilisticTPM, GeometricTPM
 from datetime import datetime
 import tensorflow as tf
@@ -78,12 +79,21 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
-    rho = tf.Variable(0., dtype=tf.float64)
+    # rho = tf.Variable(0., dtype=tf.float64)
+    #
+    # for i in tf.range(TPM1.K):
+    #     f = compute_overlap_matrix(TPM1.N, TPM1.L, TPM1.W[i], TPM2.W[i])
+    #     rho.assign_add(tf.math.divide(compute_overlap_from_matrix(
+    #         TPM1.N, TPM1.L, f), tf.cast(TPM1.K, tf.float64)))
 
-    for i in tf.range(TPM1.K):
-        f = compute_overlap_matrix(TPM1.N, TPM1.L, TPM1.W[i], TPM2.W[i])
-        rho.assign_add(tf.math.divide(compute_overlap_from_matrix(
-            TPM1.N, TPM1.L, f), tf.cast(TPM1.K, tf.float64)))
+    rho = tf.math.subtract(1,
+                           tf.math.reduce_mean(
+                               tf.math.divide(
+                                   tf.cast(tf.math.abs(tf.math.subtract(
+                                       TPM1.W, TPM2.W)), tf.float64),
+                                   (2 * tf.cast(TPM1.L, tf.float64))
+                                   )
+                               ))
 
     epsilon = tf.multiply(tf.constant(
         tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.acos(rho),
@@ -92,18 +102,17 @@ def sync_score(TPM1, TPM2):
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
         with tf.name_scope(f'{TPM1.name} + {TPM2.name}'):
             tf.summary.scalar('sync', data=rho)
-            tf.summary.scalar('generation-error', data=epsilon)
+            tf.summary.scalar('generalization-error', data=epsilon)
 
     return rho
 
 
 @tf.function
-def run(update_rule, K, N, L, key_length=256,
-        iv_length=128):
-    # Create TPM for Alice, Bob and Eve. Eve eavesdrops on Alice and Bob
+def run(update_rule, K, N, L, key_length=256, iv_length=128):
     print(
         f"Creating machines: K={K}, N={N}, L={L}, key-length={key_length}, "
-        + f"initialization-vector-length={iv_length}")
+        + f"initialization-vector-length={iv_length}, "
+        + f"attack={environ['MLENCRYPT_ATTACK']}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
     Eve = ProbabilisticTPM('Eve', K, N, L) if environ[
@@ -119,8 +128,6 @@ def run(update_rule, K, N, L, key_length=256,
                                  trainable=False, dtype=tf.int32)
     tf.summary.experimental.set_step(0)
     start_time = tf.timestamp(name='start_time')
-    sync_history = []
-    sync_history_eve = []
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
@@ -164,21 +171,17 @@ def run(update_rule, K, N, L, key_length=256,
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
         score.assign(tf.cast(100 * sync_score(Alice, Bob), tf.float32))
-        sync_history.append(score)
         score_eve.assign(tf.cast(100 * sync_score(Alice, Eve), tf.float32))
-        sync_history_eve.append(score_eve)
         tf.print("\rSynchronization = ", score, "%   /  Updates = ",
                  nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 
     end_time = tf.timestamp(name='end_time')
     time_taken = end_time - start_time
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
-        # only log these if in hparams
         # creates scatterplot (in scalars) dashboard of metric vs steps
         tf.summary.scalar('time_taken', time_taken)
         tf.summary.scalar('eve_score', score_eve)
 
-    # results
     tf.print("\nTime taken =", time_taken, "seconds.")
     tf.print("Alice's gen key =", Alice_key,
              "key :", Alice_key, "iv :", Alice_iv)

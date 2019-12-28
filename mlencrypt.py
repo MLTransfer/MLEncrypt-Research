@@ -205,7 +205,7 @@ def run(update_rule, K, N, L, key_length=256,
 
 def main():
     # less summaries are logged if MLENCRYPT_HPARAMS is True (for efficiency)
-    environ["MLENCRYPT_HPARAMS"] = 'FALSE'
+    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
@@ -216,7 +216,7 @@ def main():
         HP_ATTACK = hp.HParam('attack', hp.Discrete(
             ['none', 'geometric']))  # none
 
-        hparams = [HP_K, HP_N, HP_L, HP_UPDATE_RULE, HP_ATTACK]
+        hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
 
         logdir = 'logs/hparams/' + str(datetime.now())
         with tf.summary.create_file_writer(logdir).as_default():
@@ -226,9 +226,9 @@ def main():
                          hp.Metric('eve_score', display_name='Eve sync')]
             )
         session_num = 0
-        for K in HP_K.domain.values:
-            for N in HP_N.domain.values:
-                for L in HP_L.domain.values:
+        for K in range(HP_K.domain.min_value, HP_K.domain.max_value):
+            for N in range(HP_N.domain.min_value, HP_N.domain.max_value):
+                for L in range(HP_L.domain.min_value, HP_L.domain.max_value):
                     for update_rule in HP_UPDATE_RULE.domain.values:
                         for attack in HP_ATTACK.domain.values:
                             current_hparams = {
@@ -246,7 +246,6 @@ def main():
                                 hp.hparams(current_hparams)
 
                                 session_num += 1
-
         print(f'Wrote log file to {logdir}')
     else:
         tf.summary.trace_on()

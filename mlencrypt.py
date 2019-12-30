@@ -94,8 +94,8 @@ def sync_score(TPM1, TPM2):
                                    (2 * tf.cast(TPM1.L, tf.float64))
                                    )
                                ))
-    tf.print(TPM1.name, TPM1.W)
-    tf.print(TPM2.name, TPM2.W)
+    # tf.print(TPM1.name, TPM1.W)
+    # tf.print(TPM2.name, TPM2.W)
 
     epsilon = tf.math.multiply(tf.constant(
         tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.math.acos(rho),

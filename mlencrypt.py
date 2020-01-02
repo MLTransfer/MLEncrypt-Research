@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from tpm import TPM, ProbabilisticTPM, GeometricTPM
+from tpm import TPM, ProbabilisticTPM, GeometricTPM, tb_summary, tb_heatmap
 from datetime import datetime
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
@@ -92,8 +92,8 @@ def sync_score(TPM1, TPM2):
                                    tf.cast(tf.math.abs(tf.math.subtract(
                                        TPM1.W, TPM2.W)), tf.float64),
                                    (2 * tf.cast(TPM1.L, tf.float64))
-                                   )
-                               ))
+                               )
+                           ))
     # tf.print(TPM1.name, TPM1.W)
     # tf.print(TPM2.name, TPM2.W)
 
@@ -139,6 +139,9 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
+        tb_summary('inputs', X)
+        tb_heatmap('inputs', X, tf.range(
+            1, K + 1), tf.range(1, N + 1))
 
         # compute outputs of TPMs
         with tf.name_scope(Alice.name):
@@ -211,7 +214,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
 
 
 def main():
-    # less summaries are logged if MLENCRYPT_HPARAMS is True (for efficiency)
+    # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':

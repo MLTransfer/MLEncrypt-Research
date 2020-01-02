@@ -25,7 +25,7 @@ def tb_summary(name, data):
                 'min', tf.reduce_min(data))
             tf.summary.scalar(
                 'softmax', tf.reduce_logsumexp(tf.cast(data, tf.float64)))
-            tf.summary.histogram('histogram', data)
+        tf.summary.histogram('histogram', data)
 
 
 def tb_heatmap(name, data, xaxis, yaxis):
@@ -156,10 +156,11 @@ class TPM:
                     yaxis = tf.range(1, self.N + 1)
                     tb_heatmap('weights', self.W, xaxis, yaxis)
                     tb_boxplot('weights', self.W, xaxis)
+                    tb_summary('sigma', self.sigma)
                     for i in tf.range(self.K):
                         with tf.name_scope(f'hperceptron{i+1}'):
                             tb_summary('weights', self.W[i])
-                            tb_summary('sigma', self.sigma)
+                    tf.summary.histogram('weights', self.W)
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
@@ -244,7 +245,7 @@ class ProbabilisticTPM(TPM):
     def update(self, update_rule="hebbian"):
         """
         Args:
-            update_rule: Must be "monte_carlo" or "hebbian".
+            update_rule (str): Must be "monte_carlo" or "hebbian".
         """
         pass
 
@@ -267,8 +268,8 @@ class GeometricTPM(TPM):
         """Updates the weights according to the specified update rule.
 
         Args:
-            tau2: Output bit from the other machine, must be -1 or 1.
-            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
+            tau2 (int): Output bit from the other machine, must be -1 or 1.
+            update_rule (str): The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
         """
         if geometric:
             self.update_sigma()

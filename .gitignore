@@ -181,3 +181,11 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+*.pyc
+*.hdf5
+*.p
+*.h5
+*.HDF5
+runs/
+.vscode/

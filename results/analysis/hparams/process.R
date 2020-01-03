@@ -1,2 +1,2 @@
-data <- read.csv("/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/hparams/rawdata.csv", header = T)
+data <- read.csv("https://raw.githubusercontent.com/MLTransfer/MLEncrypt-Research/master/results/analysis/hparams/rawdata.csv", header = T)
 processed <- aggregate(.~+id2, data, mean)

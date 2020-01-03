@@ -15,8 +15,8 @@ def compute_overlap_matrix(N, L, w1, w2):
     Computes the overlap matrix for the two vectors provided.
 
     Args:
-        N: The number of inputs to the hidden units.
-        L: The depth of the weights.
+        N (int): The number of inputs to the hidden units.
+        L (int): The synaptic depth of the perceptrons.
         w1: The weights of a specific input perceptron in the first TPM.
         w2: The weights of a specific input perceptron in the second TPM.
 
@@ -37,6 +37,18 @@ def compute_overlap_matrix(N, L, w1, w2):
 
 
 def compute_overlap_matrix_probabilistic(N, L, w1, w2):
+    """
+    Computes the overlap matrix for the two vectors provided.
+
+    Args:
+        N (int): The number of inputs to the hidden units.
+        L (int): The synaptic depth of the perceptrons.
+        w1: The weights of a specific input perceptron in the first TPM.
+        w2: The weights of a specific input perceptron in the second TPM.
+
+    Returns:
+        The overlap matrix of the vectors.
+    """
     f = tf.Variable(tf.zeros([2 * L + 1, 2 * L + 1], tf.float64))
     for i in tf.range(N):
         for j in tf.range(2 * L + 1):
@@ -49,8 +61,8 @@ def compute_overlap_from_matrix(N, L, f):
     Computes the overlap of two vectors from their overlap matrix.
 
     Args:
-        N: The number of inputs per hidden unit.
-        L: The depth of the weights.
+        N (int): The number of inputs per hidden unit.
+        L (int): The depth of the weights.
         f: The overlap matrix.
     """
     R = tf.Variable(0., dtype=tf.float64)
@@ -135,6 +147,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
+    # instead of while, use for until L^4*K*N
     while score < 100 and not tf.reduce_all(tf.math.equal(Alice.W, Bob.W)):
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(

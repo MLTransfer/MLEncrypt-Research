@@ -1,6 +1,6 @@
 import glob
 import csv
-import tensorflow as tf
+import tensorflow as tf  # 2.0.0
 from tensorboard.backend.event_processing import event_accumulator
 
 
@@ -18,6 +18,7 @@ def get_pair(logfile):
 
 
 paths = glob.glob("**/**/**/events.out.tfevents.*")
+# this glob is incorrect, the repository was reorganized
 with open('time_taken.csv', 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=['step', 'time taken'])
     writer.writeheader()

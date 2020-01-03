@@ -9,8 +9,11 @@ matplotlib = "*"
 tensorflow = "*"
 seaborn = "*"
 pandas = "*"
+beautifulsoup4 = "*"
+torch = "*"
 
 [dev-packages]
+pandas = "*"
 
 [requires]
 python_version = "3.6"

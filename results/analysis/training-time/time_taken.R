@@ -1,7 +1,7 @@
 # https://drsimonj.svbtle.com/pretty-scatter-plots-with-ggplot2
 
 data <-
-  read.csv(file = "/Users/suman/quantum/mltransfer/mlencrypt-research/results/time_taken.csv", header = T)
+  read.csv(file = "/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/training-time/time_taken.csv", header = T)
 
 data$pc <- predict(prcomp( ~ steps + time.taken, data))[, 1]
 

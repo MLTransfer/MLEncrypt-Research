@@ -74,7 +74,7 @@ class TPM:
         """
         Args:
             K (int): The number of hidden neurons.
-            N (int): Then number of input neurons connected to each hidden neuron.
+            N (int): The number of input neurons connected to each hidden neuron.
             L (int): Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L}).
         """
         self.name = name
@@ -165,9 +165,9 @@ class TPM:
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
         Args:
-            key_length: Length of the key.
+            key_length (int): Length of the key.
                 Must be 128, 192, or 256.
-            iv_length: Length of the independent variable.
+            iv_length (int): Length of the independent variable.
                 Must be a multiple of 4 between 0 and 256, inclusive.
         Returns:
             The key and IV based on the TPM's weights.

@@ -69,7 +69,7 @@ pcp <- data %>%
   )
 pcp  # parallel coordinates plot
 
-
+library(reshape2)
 data$KN = data$K * data$N
 axis_x <- seq(min(data$KN), max(data$KN))
 axis_y <- seq(min(data$L), max(data$L))

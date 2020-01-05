@@ -4,8 +4,6 @@ from tensorboard.plugins.hparams import plugin_data_pb2
 from tensorboard.backend.event_processing import event_accumulator
 import glob
 import csv
-import pandas as pd
-from decimal import Decimal
 
 
 def get_hparams(logfile):

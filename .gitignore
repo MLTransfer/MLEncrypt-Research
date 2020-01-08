@@ -1,8 +1,6 @@
 .DS_Store
-decipher.txt
-decipher.dcm
-out.enc
-logs/*
+logs/
+runs/
 !logs/hparams/time_taken.py
 !logs/hparams/time_taken.csv
 !logs/hparams/time_taken.r
@@ -188,5 +186,4 @@ vignettes/*.pdf
 *.p
 *.h5
 *.HDF5
-runs/
 .vscode/

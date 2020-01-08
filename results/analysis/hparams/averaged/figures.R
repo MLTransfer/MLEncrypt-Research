@@ -5,7 +5,7 @@ data <-
     header = T
   )
 data$update_rule = gsub("anti_hebbian", 0, data$update_rule)
-data$update_rule = gsub("hebbian", -1, data$update_rule)
+data$update_rule = gsub("hebbian",-1, data$update_rule)
 data$update_rule = gsub("random_walk", 1, data$update_rule)
 library(plotly)
 size = list(size = 32)
@@ -49,22 +49,22 @@ pcp <- data %>%
         values = ~ update_rule
       ),
       list(
-        range = c(~ min(time_taken),  ~ max(time_taken)),
+        range = c( ~ min(time_taken),  ~ max(time_taken)),
         label = 'Training Time (s)',
         values = ~ time_taken
       ),
       list(
-        range = c(~ min(eve_score_none),  ~ max(eve_score_none)),
+        range = c( ~ min(eve_score_none),  ~ max(eve_score_none)),
         label = 'Eve\'s score (%), no attack',
         values = ~ eve_score_none
       ),
       list(
-        range = c(~ min(eve_score_geometric),  ~ max(eve_score_geometric)),
+        range = c( ~ min(eve_score_geometric),  ~ max(eve_score_geometric)),
         label = 'Eve\'s score (%), geometric',
         values = ~ eve_score_geometric
       ),
       list(
-        range = c(~ min(eve_score_average),  ~ max(eve_score_average)),
+        range = c( ~ min(eve_score_average),  ~ max(eve_score_average)),
         label = 'Eve\'s score (%), average',
         values = ~ eve_score_average
       )
@@ -144,14 +144,13 @@ ymin = ystats[2] - acceptable
 nooutliers = subset(data, time_taken < ymax)  # remove outliers
 
 # https://drsimonj.svbtle.com/pretty-scatter-plots-with-ggplot2
-nooutliers$pc <- predict(prcomp(~ L + time_taken, nooutliers))[, 1]
+nooutliers$pc <- predict(prcomp( ~ L + time_taken, nooutliers))[, 1]
 
 # Add density for each point
 nooutliers$density <-
   fields::interp.surface(MASS::kde2d(nooutliers$L, nooutliers$time_taken),
                          nooutliers[, c("L", "time_taken")])
 
-# Plot
 s_st <-
   ggplot(nooutliers, aes(L, time_taken, color = pc, alpha = 1 / density)) +
   geom_point(size = 3) + theme_minimal() +
@@ -161,8 +160,11 @@ s_st <-
   ylab("Training Time (s)") +
   scale_alpha_continuous(name = "Bivariate Density") +
   scale_color_continuous(name = "PCA") +
-  stat_smooth(method = "lm",
-              formula = y ~ poly(x, 2),
-              size = 1)
+  stat_smooth(
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    size = 1,
+    show.legend = FALSE
+  )
 
 s_st  # scatterplot of training time vs L

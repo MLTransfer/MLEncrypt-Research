@@ -57,12 +57,12 @@ pcp <- data %>%
         values = ~ attack
       ),
       list(
-        range = c( ~ min(time_taken),  ~ max(time_taken)),
+        range = c(~ min(time_taken),  ~ max(time_taken)),
         label = 'Training Time (s)',
         values = ~ time_taken
       ),
       list(
-        range = c( ~ min(eve_score),  ~ max(eve_score)),
+        range = c(~ min(eve_score),  ~ max(eve_score)),
         label = 'Eve\'s score (%)',
         values = ~ eve_score
       )
@@ -134,26 +134,34 @@ s_e <- add_trace(
 s_e
 
 ystats = boxplot.stats(data$time_taken)$stats
-acceptable = 1.5*(ystats[4]-ystats[2])
-ymax = ystats[4]+acceptable
-ymin = ystats[2]-acceptable
+acceptable = 1.5 * (ystats[4] - ystats[2])
+ymax = ystats[4] + acceptable
+ymin = ystats[2] - acceptable
 nooutliers = subset(data, time_taken < ymax)
 
 # https://drsimonj.svbtle.com/pretty-scatter-plots-with-ggplot2
-nooutliers$pc <- predict(prcomp( ~ L + time_taken, nooutliers))[, 1]
+nooutliers$pc <- predict(prcomp(~ L + time_taken, nooutliers))[, 1]
 
 # Add density for each point
 nooutliers$density <-
-  fields::interp.surface(MASS::kde2d(nooutliers$L, nooutliers$time_taken), nooutliers[, c("L", "time_taken")])
+  fields::interp.surface(MASS::kde2d(nooutliers$L, nooutliers$time_taken),
+                         nooutliers[, c("L", "time_taken")])
 
 # Plot
-s_st <- ggplot(nooutliers, aes(L, time_taken, color = pc, alpha = 1 / density)) +
+s_st <-
+  ggplot(nooutliers, aes(L, time_taken, color = pc, alpha = 1 / density)) +
   geom_point(size = 3) + theme_minimal() +
   scale_color_gradient(low = "#32aeff", high = "#f2aeff") +
   scale_alpha(range = c(.25, .6)) +
   xlab("L") +
   ylab("Training Time (s)") +
   scale_alpha_continuous(name = "Bivariate Density") +
-  scale_color_continuous(name = "PCA")
+  scale_color_continuous(name = "PCA") +
+  stat_smooth(
+    method = "lm",
+    formula = y ~ poly(x, 2),
+    size = 1,
+    show.legend = FALSE
+  )
 
 s_st  # scatterplot of training time vs L

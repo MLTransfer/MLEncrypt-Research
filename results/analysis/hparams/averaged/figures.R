@@ -1,7 +1,7 @@
 data <-
   read.csv(
-    "/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/hparams/averaged.csv",
-    # "https://raw.githubusercontent.com/MLTransfer/MLEncrypt-Research/master/results/analysis/hparams/processed.csv",
+    # "/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/hparams/averaged/averaged.csv",
+    "https://raw.githubusercontent.com/MLTransfer/MLEncrypt-Research/master/results/analysis/hparams/averaged/averaged.csv",
     header = T
   )
 data$update_rule = gsub("anti_hebbian", 0, data$update_rule)

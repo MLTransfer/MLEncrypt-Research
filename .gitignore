@@ -9,7 +9,8 @@ logs/*
 !logs/hparams/time_taken.svg
 weights-heatmap-*.png
 weights-boxplot-*.png
-heatmap-*.png
+inputs-heatmap-*.png
+inputs-boxplot-*.png
 
 
 # Byte-compiled / optimized / DLL files

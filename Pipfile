@@ -9,10 +9,8 @@ matplotlib = "*"
 tensorflow = "*"
 seaborn = "*"
 pandas = "*"
-neuropredict = "*"
 
 [dev-packages]
-pandas = "*"
 torch = "*"
 
 [requires]

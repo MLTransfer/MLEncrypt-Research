@@ -3,8 +3,9 @@ from torch.utils.tensorboard import SummaryWriter
 from numpy import genfromtxt
 import numpy as np
 writer = SummaryWriter()
-data = genfromtxt(
-    '/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/hparams/averaged/averaged.csv', delimiter=',', dtype=None)[1:-1]
+# filepath can be a URL, but file will be downloaded to cwd
+filepath = '/Users/suman/quantum/mltransfer/mlencrypt-research/results/analysis/hparams/averaged/averaged.csv'  # noqa
+data = genfromtxt(filepath, delimiter=',', dtype=None, encoding=None)[1:-1]
 
 
 def log_hparams(run):
@@ -26,10 +27,28 @@ def log_hparams(run):
 # np.apply_along_axis(log_hparams, axis=1, arr=data)
 # don't log hparams because the axis labels are incorrect as of 01-03-2020
 
+def to_label(row):
+    def shorten_update_rule(update_rule):
+        if update_rule == 'hebbian':
+            return 'h'
+        elif update_rule == 'anti_hebbian':
+            return 'ah'
+        elif update_rule == 'random_walk':
+            return 'rw'
+        else:
+            return 'o'
+    ur = shorten_update_rule(row[0])
+    K = int(float(row[1]))
+    N = int(float(row[2]))
+    L = int(float(row[3]))
+    training_time = round(float(row[4]))
+    score_none = round(float(row[5]), 3)
+    score_geometric = round(float(row[6]), 3)
+    return f"{ur},{K},{N},{L}:{training_time},{score_none},{score_geometric}"
 
-labels = np.apply_along_axis(
-# round continuous variables to 3 decimals
-    lambda row: f"{row[0]},{row[1]},{row[2]},{row[3]}:{row[4]},{row[5]},{row[6]}", axis=1, arr=data)
+
+labels = np.apply_along_axis(to_label, axis=1, arr=data)
+
 data = np.where(data == 'hebbian', -1, data)
 data = np.where(data == 'anti_hebbian', 0, data)
 data = np.where(data == 'random_walk', 1, data)

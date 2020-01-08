@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from tpm import TPM, ProbabilisticTPM, GeometricTPM, tb_summary, tb_heatmap
+from tpm import TPM, ProbabilisticTPM, GeometricTPM
+from tpm import tb_summary, tb_heatmap, tb_boxplot
 from datetime import datetime
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
@@ -11,8 +12,7 @@ tf.config.experimental_run_functions_eagerly(True)
 
 
 def compute_overlap_matrix(N, L, w1, w2):
-    """
-    Computes the overlap matrix for the two vectors provided.
+    """Computes the overlap matrix for the two vectors provided.
 
     Args:
         N (int): The number of inputs to the hidden units.
@@ -37,8 +37,7 @@ def compute_overlap_matrix(N, L, w1, w2):
 
 
 def compute_overlap_matrix_probabilistic(N, L, w1, w2):
-    """
-    Computes the overlap matrix for the two vectors provided.
+    """Computes the overlap matrix for the two vectors provided.
 
     Args:
         N (int): The number of inputs to the hidden units.
@@ -57,8 +56,7 @@ def compute_overlap_matrix_probabilistic(N, L, w1, w2):
 
 
 def compute_overlap_from_matrix(N, L, f):
-    """
-    Computes the overlap of two vectors from their overlap matrix.
+    """Computes the overlap of two vectors from their overlap matrix.
 
     Args:
         N (int): The number of inputs per hidden unit.
@@ -106,8 +104,6 @@ def sync_score(TPM1, TPM2):
                                    (2 * tf.cast(TPM1.L, tf.float64))
                                )
                            ))
-    # tf.print(TPM1.name, TPM1.W)
-    # tf.print(TPM2.name, TPM2.W)
 
     epsilon = tf.math.multiply(tf.constant(
         tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.math.acos(rho),
@@ -152,9 +148,12 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
-        tb_summary('inputs', X)
-        tb_heatmap('inputs', X, tf.range(
-            1, K + 1), tf.range(1, N + 1))
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            tb_summary('inputs', X)
+            xaxis = tf.range(
+                1, K + 1), tf.range(1, N + 1)
+            tb_heatmap('inputs', X, xaxis)
+            tb_boxplot('inputs', X, xaxis)
 
         # compute outputs of TPMs
         with tf.name_scope(Alice.name):
@@ -192,6 +191,10 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
 
         score.assign(tf.cast(100 * sync_score(Alice, Bob), tf.float32))
         score_eve.assign(tf.cast(100 * sync_score(Alice, Eve), tf.float32))
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            # log adversary score for Bob's weights
+            sync_score(Bob, Eve)
+
         tf.print("\rSynchronization = ", score, "%   /  Updates = ",
                  nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 

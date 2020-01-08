@@ -73,9 +73,10 @@ class TPM:
     def __init__(self, name, K=8, N=12, L=4):
         """
         Args:
-            K (int): The number of hidden neurons.
-            N (int): The number of input neurons connected to each hidden neuron.
-            L (int): Boundaries of each weight ({-L, ..., -1, 0, 1, ..., +L}).
+            K (int): The number of hidden perceptrons.
+            N (int): The number of input perceptrons that each hidden
+                perceptron has.
+            L (int): The synaptic depth of each input perceptron's weights.
         """
         self.name = name
         with tf.name_scope(name):
@@ -133,8 +134,9 @@ class TPM:
         """Updates the weights according to the specified update rule.
 
         Args:
-            tau2: Output bit from the other machine, must be -1 or 1.
-            update_rule: The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
+            tau2 (int): Output bit from the other machine, must be -1 or 1.
+            update_rule (str): The update rule, must be 'hebbian',
+                'anti_hebbian', or 'random_walk'.
         """
         if tf.math.equal(self.tau, tau2):
             if tf.math.equal(update_rule, 'hebbian'):
@@ -164,6 +166,7 @@ class TPM:
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
+
         Args:
             key_length (int): Length of the key.
                 Must be 128, 192, or 256.
@@ -203,7 +206,8 @@ class ProbabilisticTPM(TPM):
     Attributes:
         W: [K, N, 2L+1] matrix representing the PDF of the weight distribution.
         mu_W: [K, N] matrix of the averages of the weight distributions.
-        sigma_W: [K, N] matrix of the standard deviations of the weight distributions.
+        sigma_W: [K, N] matrix of the standard deviations of the weight
+            distributions.
     """
 
     def __init__(self, name, K=8, N=12, L=4):
@@ -216,7 +220,7 @@ class ProbabilisticTPM(TPM):
 
         Normalizes the probability distribution associated with W[i, j]. If
         negative indeces i, j are provided, the normalization is carried out
-        for all the probability distributions.
+        for the entire probability distributions.
 
         Args:
             i (int): Index of the hidden perceptron distribution to normalize.
@@ -269,7 +273,8 @@ class GeometricTPM(TPM):
 
         Args:
             tau2 (int): Output bit from the other machine, must be -1 or 1.
-            update_rule (str): The update rule, must be 'hebbian', 'anti_hebbian', or 'random_walk'.
+            update_rule (str): The update rule, must be 'hebbian',
+                'anti_hebbian', or 'random_walk'.
         """
         if geometric:
             self.update_sigma()

@@ -1,4 +1,4 @@
-import tensorflow as tf  # 2.0.0
+import tensorflow as tf  # 2.1.0
 from tensorflow.python.summary.summary_iterator import summary_iterator
 from tensorboard.plugins.hparams import plugin_data_pb2
 from tensorboard.backend.event_processing import event_accumulator
@@ -46,10 +46,9 @@ def get_run_data(logfile):
 
 
 paths = glob.glob("../../../**/**/**/events.out.tfevents.*")
-# this glob is incorrect, the repository was reorganized
 with open('rawdata.csv', 'w', newline='') as csvfile:
-    headers = ['update_rule', 'K', 'N', 'L',
-               'attack', 'time_taken', 'eve_score']
+    headers = ['update_rule', 'K', 'N', 'L', 'attack',
+               'time_taken', 'eve_score']
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
     for path in paths:

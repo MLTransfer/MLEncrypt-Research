@@ -45,7 +45,7 @@ def get_run_data(logfile):
     # return update_rule, K, N, L, attack, time_taken, eve_score
 
 
-paths = glob.glob("../../**/**/**/events.out.tfevents.*")
+paths = glob.glob("../../../**/**/**/events.out.tfevents.*")
 # this glob is incorrect, the repository was reorganized
 with open('rawdata.csv', 'w', newline='') as csvfile:
     headers = ['update_rule', 'K', 'N', 'L',
@@ -58,9 +58,14 @@ with open('rawdata.csv', 'w', newline='') as csvfile:
         if (hparams is None) or (time_taken is -1 and eve_score is -1):
             continue
         K, N, L, update_rule, attack = hparams
-        writer.writerow({'update_rule': update_rule, 'K': K, 'N': N, 'L': L,
-                         'attack': attack, 'time_taken': time_taken,
-                         'eve_score': eve_score})
+        writer.writerow({'update_rule': update_rule,
+                         'K': K,
+                         'N': N,
+                         'L': L,
+                         'attack': attack,
+                         'time_taken': time_taken,
+                         'eve_score': eve_score
+                         })
 
 
 # def to_decimal(d):

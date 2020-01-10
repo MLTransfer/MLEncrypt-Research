@@ -63,7 +63,7 @@ pcp <- data %>%
       ),
       list(
         range = c(~ min(adversary_score),  ~ max(adversary_score)),
-        label = 'Eve\'s score (%)',
+        label = 'Adversary score (%)',
         values = ~ adversary_score
       )
     )
@@ -122,7 +122,7 @@ s_e <-
   layout(scene = list(
     xaxis = list(title = 'KN'),
     yaxis = list(title = 'L'),
-    zaxis = list(title = 'Eve\'s Score (%)')
+    zaxis = list(title = 'Adversary Score (%)')
   ))
 s_e <- add_trace(
   p = s_e,

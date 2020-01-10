@@ -54,19 +54,19 @@ pcp <- data %>%
         values = ~ training_time
       ),
       list(
-        range = c( ~ min(eve_score_none),  ~ max(eve_score_none)),
-        label = 'Eve\'s score (%), no attack',
-        values = ~ eve_score_none
+        range = c( ~ min(adversary_score_none),  ~ max(adversary_score_none)),
+        label = 'Adversary score (%), no attack',
+        values = ~ adversary_score_none
       ),
       list(
-        range = c( ~ min(eve_score_geometric),  ~ max(eve_score_geometric)),
-        label = 'Eve\'s score (%), geometric',
-        values = ~ eve_score_geometric
+        range = c( ~ min(adversary_score_geometric),  ~ max(adversary_score_geometric)),
+        label = 'Adversary score (%), geometric',
+        values = ~ adversary_score_geometric
       ),
       list(
-        range = c( ~ min(eve_score_average),  ~ max(eve_score_average)),
-        label = 'Eve\'s score (%), average',
-        values = ~ eve_score_average
+        range = c( ~ min(adversary_score_average),  ~ max(adversary_score_average)),
+        label = 'Adversary score (%), average',
+        values = ~ adversary_score_average
       )
     )
   )
@@ -106,20 +106,20 @@ s_t <- add_trace(
 )
 s_t  # scatterplot of time vs KN + L
 
-lm_e <- lm(eve_score_average ~ KN + L, data = data)
+lm_e <- lm(adversary_score_average ~ KN + L, data = data)
 lm_e_surface <- expand.grid(KN = axis_x,
                             L = axis_y,
                             KEEP.OUT.ATTRS = F)
-lm_e_surface$eve_score_average <-
+lm_e_surface$adversary_score_average <-
   predict.lm(lm_e, newdata = lm_e_surface)
 lm_e_surface <-
-  acast(lm_e_surface, L ~ KN, value.var = "eve_score_average")
+  acast(lm_e_surface, L ~ KN, value.var = "adversary_score_average")
 s_e <-
   plot_ly(
     data,
     x = ~ KN,
     y = ~ L,
-    z = ~ eve_score_average,
+    z = ~ adversary_score_average,
     type = 'scatter3d',
     mode = 'lines+markers+text'
   ) %>%

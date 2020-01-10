@@ -1,5 +1,7 @@
 # MLEncrypt-Research
 
+Developed and tested in TensorFlow 2.0.0 and 2.1.0.
+
 ## Acknowledgements
 
 -   <https://github.com/farizrahman4u/neuralkey>

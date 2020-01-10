@@ -9,9 +9,9 @@ matplotlib = "*"
 tensorflow = "*"
 seaborn = "*"
 pandas = "*"
+torch = "*"
 
 [dev-packages]
-torch = "*"
 
 [requires]
 python_version = "3.6"

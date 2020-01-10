@@ -17,9 +17,9 @@ def log_hparams(run):
     }
     metric_dict = {
         'hparams/training-time': float(run[4]),
-        'hparams/Eve-score-none': float(run[5]),
-        'hparams/Eve-score-geometric': float(run[6]),
-        'hparams/Eve-score-average': float(run[7]),
+        'hparams/adversary-score/none': float(run[5]),
+        'hparams/adversary-score/geometric': float(run[6]),
+        'hparams/adversary-score/average': float(run[7]),
     }
     writer.add_hparams(hparam_dict, metric_dict)
 

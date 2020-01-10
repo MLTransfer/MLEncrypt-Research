@@ -1,9 +1,10 @@
-import tensorflow as tf  # 2.1.0
+import tensorflow as tf  # 2.0.0 or 2.1.0
 from tensorflow.python.summary.summary_iterator import summary_iterator
 from tensorboard.plugins.hparams import plugin_data_pb2
 from tensorboard.backend.event_processing import event_accumulator
 import glob
 import csv
+import pandas as pd
 
 
 def get_hparams(logfile):
@@ -31,30 +32,32 @@ def get_metrics(logfile):
         logfile, size_guidance={event_accumulator.TENSORS: 2})
     event.Reload()
     try:
-        time_taken = tf.make_ndarray(
+        training_time = tf.make_ndarray(
             event.Tensors("time_taken")[0].tensor_proto)
-        eve_score = tf.make_ndarray(event.Tensors("eve_score")[0].tensor_proto)
+        adversary_score = tf.make_ndarray(
+            event.Tensors("eve_score")[0].tensor_proto)
     except KeyError:
-        time_taken = -1
-        eve_score = -1
-    return time_taken, eve_score
+        training_time = -1
+        adversary_score = -1
+    return training_time, adversary_score
 
 
 def get_run_data(logfile):
     return get_hparams(logfile), get_metrics(logfile)
-    # return update_rule, K, N, L, attack, time_taken, eve_score
 
 
 paths = glob.glob("../../../**/**/**/events.out.tfevents.*")
 with open('rawdata.csv', 'w', newline='') as csvfile:
     headers = ['update_rule', 'K', 'N', 'L', 'attack',
-               'time_taken', 'eve_score']
+               'training_time', 'adversary_score']
     writer = csv.DictWriter(csvfile, fieldnames=headers)
     writer.writeheader()
     for path in paths:
         hparams, metrics = get_run_data(path)
-        time_taken, eve_score = metrics
-        if (hparams is None) or (time_taken is -1 and eve_score is -1):
+        training_time, adversary_score = metrics
+        # print(hparams, metrics)
+        if ((hparams is None)
+                or (training_time is -1 and adversary_score is -1)):
             continue
         K, N, L, update_rule, attack = hparams
         writer.writerow({'update_rule': update_rule,
@@ -62,19 +65,11 @@ with open('rawdata.csv', 'w', newline='') as csvfile:
                          'N': N,
                          'L': L,
                          'attack': attack,
-                         'time_taken': time_taken,
-                         'eve_score': eve_score
+                         'training_time': training_time,
+                         'adversary_score': adversary_score
                          })
 
 
-# def to_decimal(d):
-#     return Decimal(d)
-#
-#
-# data = pd.read_csv("rawdata.csv", converters={
-#                    'time_taken': to_decimal, 'eve_score': to_decimal})
-# groupby = data.groupby(['update_rule', 'K', 'N', 'L', 'attack'])
-# processed = groupby.apply(
-#     lambda x: x.sum()) / groupby.size()
-# del groupby
-# processed.to_csv('processed.csv')
+data = pd.read_csv("rawdata.csv")
+processed = data.groupby(['update_rule', 'K', 'N', 'L', 'attack']).mean()
+processed.to_csv('../averaged/averaged-with-attack.csv')

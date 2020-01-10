@@ -18,7 +18,7 @@ def log_hparams(run):
     }
     metric_dict = {
         'hparams/training-time': float(run[5]),
-        'hparams/Eve-score': float(run[6])
+        'hparams/adversary-score': float(run[6])
     }
     writer.add_hparams(hparam_dict, metric_dict)
 

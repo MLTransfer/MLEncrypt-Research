@@ -13,7 +13,7 @@ def log_hparams(run):
         'K': int(float(run[1])),
         'N': int(float(run[2])),
         'L': int(float(run[3])),
-        'update-rule': run[0].decode("utf-8"),
+        'update-rule': run[0],
     }
     metric_dict = {
         'hparams/training-time': float(run[4]),
@@ -25,7 +25,8 @@ def log_hparams(run):
 
 
 # np.apply_along_axis(log_hparams, axis=1, arr=data)
-# don't log hparams because the axis labels are incorrect as of 01-03-2020
+# don't log hparams because the axis labels are misordered (as of 01-09-2020)
+
 
 def to_label(row):
     def shorten_update_rule(update_rule):

@@ -8,10 +8,11 @@ data$update_rule = gsub("anti_hebbian", 0, data$update_rule)
 data$update_rule = gsub("hebbian",-1, data$update_rule)
 data$update_rule = gsub("random_walk", 1, data$update_rule)
 library(plotly)
-size = list(size = 32)
+size = list(size = 32, automargin = TRUE)
 pcp <- data %>%
   plot_ly(width = 1000, height = 600) %>%
   layout(title = "Parallel Coordinates Plot of Averaged Hyperparameter Data",
+         autosize = F,
          scene = list(xaxis = size,
                       yaxis = size)) %>%
   add_trace(
@@ -55,17 +56,17 @@ pcp <- data %>%
       ),
       list(
         range = c( ~ min(adversary_score_none),  ~ max(adversary_score_none)),
-        label = 'Adversary score (%), no attack',
+        label = 'Adversary score (%), \nno attack',
         values = ~ adversary_score_none
       ),
       list(
         range = c( ~ min(adversary_score_geometric),  ~ max(adversary_score_geometric)),
-        label = 'Adversary score (%), geometric',
+        label = 'Adversary score (%), \ngeometric',
         values = ~ adversary_score_geometric
       ),
       list(
         range = c( ~ min(adversary_score_average),  ~ max(adversary_score_average)),
-        label = 'Adversary score (%), average',
+        label = 'Adversary score (%), \naverage',
         values = ~ adversary_score_average
       )
     )

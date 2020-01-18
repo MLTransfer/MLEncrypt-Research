@@ -38,12 +38,12 @@ def tb_heatmap(name, data, xaxis, yaxis):
                 tf.cast(max, tf.float64), 1.5)).numpy()
         cmap = plt.get_cmap(lut=max - min + 1)
         sns.heatmap(pd.DataFrame(data=data.numpy(),
-                                 index=xaxis,
-                                 columns=yaxis).transpose(),
+                                 index=yaxis,
+                                 columns=xaxis),
                     ax=ax,
                     cmap=cmap,
                     cbar_kws={"ticks": ticks, "boundaries": boundaries})
-        ax.set(xlabel="hidden perceptron", ylabel="input perceptron")
+        ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
         png_file = f'{name}-heatmap-{tf.summary.experimental.get_step()}.png'
         plt.savefig(png_file)
         plt.close()
@@ -154,10 +154,10 @@ class TPM:
                                 + "\'random_walk\'.")
             if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
                 with tf.name_scope(self.name):
-                    xaxis = tf.range(1, self.K + 1)
-                    yaxis = tf.range(1, self.N + 1)
-                    tb_heatmap('weights', self.W, xaxis, yaxis)
-                    tb_boxplot('weights', self.W, xaxis)
+                    hpaxis, ipaxis = tf.range(
+                        1, self.K + 1), tf.range(1, self.N + 1)
+                    tb_heatmap('weights', self.W, ipaxis, hpaxis)
+                    tb_boxplot('weights', self.W, hpaxis)
                     tb_summary('sigma', self.sigma)
                     for i in tf.range(self.K):
                         with tf.name_scope(f'hperceptron{i+1}'):
@@ -295,10 +295,10 @@ class GeometricTPM(TPM):
                                 + "\'random_walk\'.")
             if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
                 with tf.name_scope(self.name):
-                    xaxis = tf.range(1, self.K + 1)
-                    yaxis = tf.range(1, self.N + 1)
-                    tb_heatmap('weights', self.W, xaxis, yaxis)
-                    tb_boxplot('weights', self.W, xaxis)
+                    hpaxis, ipaxis = tf.range(
+                        1, self.K + 1), tf.range(1, self.N + 1)
+                    tb_heatmap('weights', self.W, ipaxis, hpaxis)
+                    tb_boxplot('weights', self.W, hpaxis)
                     for i in tf.range(self.K):
                         with tf.name_scope(f'hperceptron{i+1}'):
                             tb_summary('weights', self.W[i])

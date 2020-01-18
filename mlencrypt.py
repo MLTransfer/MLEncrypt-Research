@@ -2,6 +2,7 @@
 from tpm import TPM, ProbabilisticTPM, GeometricTPM
 from tpm import tb_summary, tb_heatmap, tb_boxplot
 from datetime import datetime
+import time
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
 import math
@@ -137,7 +138,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
     nb_eve_updates = tf.Variable(0, name='nb_eve_updates',
                                  trainable=False, dtype=tf.int32)
     tf.summary.experimental.set_step(0)
-    start_time = tf.timestamp(name='start_time')
+    start_time = time.perf_counter()
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
@@ -148,9 +149,9 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             tb_summary('inputs', X)
-            xaxis, yaxis = tf.range(1, K + 1), tf.range(1, N + 1)
-            tb_heatmap('inputs', X, xaxis, yaxis)
-            tb_boxplot('inputs', X, xaxis)
+            hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+            tb_heatmap('inputs', X, ipaxis, hpaxis)
+            tb_boxplot('inputs', X, hpaxis)
 
         # compute outputs of TPMs
         with tf.name_scope(Alice.name):
@@ -195,7 +196,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
         tf.print("\rSynchronization = ", score, "%   /  Updates = ",
                  nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 
-    end_time = tf.timestamp(name='end_time')
+    end_time = time.perf_counter()
     time_taken = end_time - start_time
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         # creates scatterplot (in scalars) dashboard of metric vs steps

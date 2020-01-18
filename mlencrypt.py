@@ -121,8 +121,6 @@ def sync_score(TPM1, TPM2):
 def run(update_rule, K, N, L, key_length=256, iv_length=128):
     print(
         f"Creating machines: K={K}, N={N}, L={L}, "
-        + f"key-length={key_length}, "
-        + f"initialization-vector-length={iv_length}, "
         + f"update-rule={update_rule}, "
         + f"attack={environ['MLENCRYPT_ATTACK']}")
     Alice = TPM('Alice', K, N, L)
@@ -150,9 +148,8 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             tb_summary('inputs', X)
-            xaxis = tf.range(
-                1, K + 1), tf.range(1, N + 1)
-            tb_heatmap('inputs', X, xaxis)
+            xaxis, yaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+            tb_heatmap('inputs', X, xaxis, yaxis)
             tb_boxplot('inputs', X, xaxis)
 
         # compute outputs of TPMs
@@ -274,22 +271,23 @@ def main():
                                 session_num += 1
         print(f'Wrote log file to {logdir}')
     else:
-        tf.summary.trace_on()
         # tf.python.eager.profiler.start()
         logdir = 'logs/' + str(datetime.now())
-        with tf.summary.create_file_writer(logdir).as_default():
-            K = 8
-            N = 12
-            L = 4
-            update_rule = 'hebbian'  # or anti_hebbian or random_walk
-            key_length = 256
-            iv_length = 128
-            environ["MLENCRYPT_ATTACK"] = 'NONE'
+        writer = tf.summary.create_file_writer(logdir)
+        tf.summary.trace_on()
+        K = 8
+        N = 12
+        L = 4
+        update_rule = 'hebbian'  # or anti_hebbian or random_walk
+        key_length = 256
+        iv_length = 128
+        environ["MLENCRYPT_ATTACK"] = 'NONE'
 
+        with writer.as_default():
             run(update_rule, K, N, L, key_length, iv_length)
             tf.summary.trace_export("graph")
-            # profiler_result = tf.python.eager.profiler.stop()
-            # tf.python.eager.profiler.save(logdir, profiler_result)
+        # profiler_result = tf.python.eager.profiler.stop()
+        # tf.python.eager.profiler.save(logdir, profiler_result)
 
 
 if __name__ == "__main__":

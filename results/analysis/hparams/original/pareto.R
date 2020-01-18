@@ -15,22 +15,22 @@ knitr::kable(select(res, training_time, adversary_score))
 
 library(plotly)
 skyline <-
-  plot_ly(type = 'scatter', mode = 'markers') %>%
+  plot_ly(type = "scatter", mode = "markers") %>%
   layout(
-    xaxis = list(title = 'Training Time (s)'),
-    yaxis = list(title = 'Adversary Score (%)')
+    xaxis = list(title = "Training Time (s)"),
+    yaxis = list(title = "Adversary Score (%)")
   ) %>%
   add_trace(
     data = data,
     x = ~ training_time,
     y = ~ adversary_score,
-    name = 'All data'
+    name = "All data"
   ) %>%
   add_trace(
     data = res,
     x = ~ training_time,
     y = ~ adversary_score,
-    name = 'Pareto frontier'
+    name = "Pareto frontier"
   )
 skyline
 

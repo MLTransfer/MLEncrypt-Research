@@ -11,6 +11,7 @@ import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
 from math import pi
 from hyperopt import hp as hyperopt, fmin, tpe
+from hyperopt.pyll.base import scope
 
 
 tf.config.experimental_run_functions_eagerly(True)
@@ -101,14 +102,18 @@ def sync_score(TPM1, TPM2):
     #     rho.assign_add(tf.math.divide(compute_overlap_from_matrix(
     #         TPM1.N, TPM1.L, f), tf.cast(TPM1.K, tf.float64)))
 
-    rho = tf.math.subtract(1,
-                           tf.math.reduce_mean(
-                               tf.math.divide(
-                                   tf.cast(tf.math.abs(tf.math.subtract(
-                                       TPM1.W, TPM2.W)), tf.float64),
-                                   (2 * tf.cast(TPM1.L, tf.float64))
-                               )
-                           ))
+    rho = tf.math.subtract(
+        1,
+        tf.math.reduce_mean(
+            tf.math.divide(
+                tf.cast(tf.math.abs(tf.math.subtract(
+                    TPM1.W,
+                    TPM2.W
+                )), tf.float64),
+                (2. * tf.cast(TPM1.L, tf.float64))
+            )
+        )
+    )
 
     epsilon = tf.math.multiply(
         tf.constant(tf.math.reciprocal(pi), tf.float32),
@@ -134,17 +139,17 @@ HP_UPDATE_RULE = hp.HParam(
 )
 HP_K = hp.HParam(
     'tpm_k',
-    domain=hp.IntInterval(4, 24),
+    domain=hp.IntInterval(4, 32),
     display_name='K'
 )
 HP_N = hp.HParam(
     'tpm_n',
-    domain=hp.IntInterval(4, 24),
+    domain=hp.IntInterval(4, 32),
     display_name='N'
 )
 HP_L = hp.HParam(
     'tpm_l',
-    domain=hp.IntInterval(4, 24),
+    domain=hp.IntInterval(4, 32),
     display_name='L'
 )
 HP_ATTACK = hp.HParam(
@@ -317,9 +322,9 @@ def main():
             hyperopt.choice(
                 'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
             ),
-            hyperopt.randint('tpm_k', 4, 24),
-            hyperopt.randint('tpm_n', 4, 24),
-            hyperopt.randint('tpm_l', 4, 24),
+            scope.int(hyperopt.quniform('tpm_k', 4, 32, q=1)),
+            scope.int(hyperopt.quniform('tpm_n', 4, 32, q=1)),
+            scope.int(hyperopt.quniform('tpm_l', 4, 32, q=1)),
             hyperopt.choice(
                 'attack', ['none', 'geometric']
             )

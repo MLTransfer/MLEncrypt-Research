@@ -197,10 +197,12 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
 
     end_time = time.perf_counter()
     time_taken = end_time - start_time
+    loss = (tf.math.sigmoid(time_taken) + score_eve / 100.) / 2.
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         # creates scatterplot (in scalars) dashboard of metric vs steps
         tf.summary.scalar('time_taken', time_taken)
         tf.summary.scalar('eve_score', score_eve)
+        tf.summary.scalar('loss', loss)
 
     tf.print("\nTime taken =", time_taken, "seconds.")
     tf.print("Alice's gen key =", Alice_key,
@@ -218,7 +220,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
             tf.print("Eve's machine is ", score_eve,
                      "% synced with Alice's and Bob's and she did ",
                      nb_eve_updates, " updates.", sep='')
-        return time_taken, score_eve
+        return loss
 
     else:
         print("ERROR: cipher impossible; Alice and Bob have different key/IV")
@@ -245,8 +247,11 @@ def main():
         with tf.summary.create_file_writer(logdir).as_default():
             hp.hparams_config(
                 hparams=hparams,
-                metrics=[hp.Metric('time_taken', display_name='Time'),
-                         hp.Metric('eve_score', display_name='Eve sync')]
+                metrics=[
+                    hp.Metric('time_taken', display_name='Time'),
+                    hp.Metric('eve_score', display_name='Eve sync'),
+                    hp.Metric('loss', display_name='Final Loss')
+                ]
             )
         session_num = 0
         for K in range(HP_K.domain.min_value, HP_K.domain.max_value):

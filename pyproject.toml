@@ -12,6 +12,7 @@ torch = "^1.4.0"
 tensorflow = "^2.1.0"
 tensorflow-estimator = "2.1.0"
 setuptools = "41.0.0"
+hyperopt = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 

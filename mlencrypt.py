@@ -2,7 +2,7 @@
 from tpm import TPM, ProbabilisticTPM, GeometricTPM
 from tpm import tb_summary, tb_heatmap, tb_boxplot
 from datetime import datetime
-import time
+from time import perf_counter
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
 import math
@@ -119,17 +119,15 @@ def sync_score(TPM1, TPM2):
 
 
 @tf.function
-def run(update_rule, K, N, L, key_length=256, iv_length=128):
+def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
     print(
         f"Creating machines: K={K}, N={N}, L={L}, "
         + f"update-rule={update_rule}, "
-        + f"attack={environ['MLENCRYPT_ATTACK']}")
+        + f"attack={attack}")
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
-    Eve = ProbabilisticTPM('Eve', K, N, L) if environ[
-        "MLENCRYPT_ATTACK"] == 'PROBABILISTIC' else (
-        GeometricTPM('Eve', K, N, L) if environ[
-            "MLENCRYPT_ATTACK"] == 'GEOMETRIC' else
+    Eve = ProbabilisticTPM('Eve', K, N, L) if attack == 'probabilistic' else (
+        GeometricTPM('Eve', K, N, L) if attack == 'geometric' else
         TPM('Eve', K, N, L))
 
     nb_updates = tf.Variable(0, name='nb_updates',
@@ -137,7 +135,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
     nb_eve_updates = tf.Variable(0, name='nb_eve_updates',
                                  trainable=False, dtype=tf.int32)
     tf.summary.experimental.set_step(0)
-    start_time = time.perf_counter()
+    start_time = perf_counter()
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
@@ -174,8 +172,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
-        elif (tauA == tauB != tauE) and environ[
-                "MLENCRYPT_ATTACK"] == 'GEOMETRIC':
+        elif (tauA == tauB != tauE) and attack == 'geometric':
             Eve.update(tauA, update_rule, geometric=True)
             nb_eve_updates.assign_add(1, use_locking=True)
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
@@ -195,7 +192,7 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
         tf.print("\rSynchronization = ", score, "%   /  Updates = ",
                  nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
 
-    end_time = time.perf_counter()
+    end_time = perf_counter()
     time_taken = end_time - start_time
     loss = (tf.math.sigmoid(time_taken) + score_eve / 100.) / 2.
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
@@ -213,8 +210,10 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
              "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
-        if tf.math.greater_equal(tf.cast(score_eve, tf.float64), tf.constant(
-                100, tf.float64)):
+        if tf.math.greater_equal(
+            tf.cast(score_eve, tf.float64),
+            tf.constant(100, tf.float64)
+        ):
             print("NOTE: Eve synced her machine with Alice's and Bob's!")
         else:
             tf.print("Eve's machine is ", score_eve,
@@ -266,11 +265,10 @@ def main():
                                 HP_UPDATE_RULE: update_rule,
                                 HP_ATTACK: attack
                             }
-                            environ["MLENCRYPT_ATTACK"] = attack.upper()
                             run_name = "run-%d" % session_num
                             with tf.summary.create_file_writer(
                                     logdir + '/' + run_name).as_default():
-                                run(update_rule, K, N, L)
+                                run(update_rule, K, N, L, attack)
                                 hp.hparams(current_hparams)
 
                                 session_num += 1
@@ -286,10 +284,10 @@ def main():
         update_rule = 'hebbian'  # or anti_hebbian or random_walk
         key_length = 256
         iv_length = 128
-        environ["MLENCRYPT_ATTACK"] = 'NONE'
+        attack = 'none'
 
         with writer.as_default():
-            run(update_rule, K, N, L, key_length, iv_length)
+            run(update_rule, K, N, L, attack, key_length, iv_length)
             tf.summary.trace_export("graph")
         # profiler_result = tf.python.eager.profiler.stop()
         # tf.python.eager.profiler.save(logdir, profiler_result)

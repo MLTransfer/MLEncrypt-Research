@@ -128,56 +128,61 @@ def sync_score(TPM1, TPM2):
     return rho
 
 
-logdir = f'logs/hparams/{datetime.now()}'
-writer = tf.summary.create_file_writer(logdir)
-session_num = 0
+# less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
+environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
-HP_UPDATE_RULE = hp.HParam(
-    'update_rule',
-    domain=hp.Discrete(['hebbian', 'anti_hebbian', 'random_walk']),
-    display_name='update_rule'
-)
-HP_K = hp.HParam(
-    'tpm_k',
-    domain=hp.IntInterval(4, 32),
-    display_name='K'
-)
-HP_N = hp.HParam(
-    'tpm_n',
-    domain=hp.IntInterval(4, 32),
-    display_name='N'
-)
-HP_L = hp.HParam(
-    'tpm_l',
-    domain=hp.IntInterval(4, 32),
-    display_name='L'
-)
-HP_ATTACK = hp.HParam(
-    'attack',
-    domain=hp.Discrete(['none', 'geometric']),
-    display_name='attack'
-)
-hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
+if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
+    logdir = f'logs/hparams/{datetime.now()}'
+    writer = tf.summary.create_file_writer(logdir)
 
-with writer.as_default():
-    hp.hparams_config(
-        hparams=hparams,
-        metrics=[
-            hp.Metric(
-                'time_taken',
-                display_name='Training Time (s)'
-            ),
-            hp.Metric(
-                'eve_score',
-                display_name='Eve Sync (%)'
-            ),
-            hp.Metric(
-                'loss',
-                display_name='Final Loss',
-                description='Average of S(Training Time) and Eve Sync'
-            )
-        ]
+    HP_UPDATE_RULE = hp.HParam(
+        'update_rule',
+        domain=hp.Discrete(['hebbian', 'anti_hebbian', 'random_walk']),
+        display_name='update_rule'
     )
+    HP_K = hp.HParam(
+        'tpm_k',
+        domain=hp.IntInterval(4, 32),
+        display_name='K'
+    )
+    HP_N = hp.HParam(
+        'tpm_n',
+        domain=hp.IntInterval(4, 32),
+        display_name='N'
+    )
+    HP_L = hp.HParam(
+        'tpm_l',
+        domain=hp.IntInterval(4, 32),
+        display_name='L'
+    )
+    HP_ATTACK = hp.HParam(
+        'attack',
+        domain=hp.Discrete(['none', 'geometric']),
+        display_name='attack'
+    )
+    hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
+
+    with writer.as_default():
+        hp.hparams_config(
+            hparams=hparams,
+            metrics=[
+                hp.Metric(
+                    'time_taken',
+                    display_name='Training Time (s)'
+                ),
+                hp.Metric(
+                    'eve_score',
+                    display_name='Eve Sync (%)'
+                ),
+                hp.Metric(
+                    'loss',
+                    display_name='Final Loss',
+                    description='Average of S(Training Time) and Eve Sync'
+                )
+            ]
+        )
+
+session_num = 0
 
 
 @tf.function
@@ -288,6 +293,12 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
         tf.summary.scalar('eve_score', score_eve)
         tf.summary.scalar('loss', loss)
 
+        # do this if hparams was enabled because the output keys and IVs
+        # haven't been defined yet
+        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+
     tf.print("\nTime taken =", time_taken, "seconds.")
     tf.print("Alice's gen key =", Alice_key,
              "key :", Alice_key, "iv :", Alice_iv)
@@ -315,9 +326,6 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
 
 
 def main():
-    # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
-    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
-
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         space = [
             hyperopt.choice(
@@ -332,7 +340,6 @@ def main():
         ]
         fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
     else:
-        # tf.python.eager.profiler.start()
         tf.summary.trace_on()
         update_rule = 'hebbian'  # or anti_hebbian or random_walk
         K = 8
@@ -342,11 +349,11 @@ def main():
         iv_length = 128
         attack = 'none'
 
-        with writer.as_default():
+        logdir = f'logs/ur={update_rule},K={K},N={N},L={L},attack={attack}'
+
+        with tf.summary.create_file_writer(logdir).as_default():
             run(update_rule, K, N, L, attack, key_length, iv_length)
             tf.summary.trace_export("graph")
-        # profiler_result = tf.python.eager.profiler.stop()
-        # tf.python.eager.profiler.save(logdir, profiler_result)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 from tpm import TPM, ProbabilisticTPM, GeometricTPM
 from tpm import tb_summary, tb_heatmap, tb_boxplot
+
+from os import environ
+from os.path import join
 from datetime import datetime
 from time import perf_counter
+
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
-import math
-from os import environ
+from math import pi
+from hyperopt import hp as hyperopt, fmin, tpe
 
 
 tf.config.experimental_run_functions_eagerly(True)
@@ -106,9 +110,10 @@ def sync_score(TPM1, TPM2):
                                )
                            ))
 
-    epsilon = tf.math.multiply(tf.constant(
-        tf.math.reciprocal(math.pi), tf.float32), tf.cast(tf.math.acos(rho),
-                                                          tf.float32))
+    epsilon = tf.math.multiply(
+        tf.constant(tf.math.reciprocal(pi), tf.float32),
+        tf.cast(tf.math.acos(rho), tf.float32)
+    )
 
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
         with tf.name_scope(f'{TPM1.name} + {TPM2.name}'):
@@ -116,6 +121,76 @@ def sync_score(TPM1, TPM2):
             tf.summary.scalar('generalization-error', data=epsilon)
 
     return rho
+
+
+logdir = f'logs/hparams/{datetime.now()}'
+writer = tf.summary.create_file_writer(logdir)
+session_num = 0
+
+HP_UPDATE_RULE = hp.HParam(
+    'update_rule',
+    domain=hp.Discrete(['hebbian', 'anti_hebbian', 'random_walk']),
+    display_name='update_rule'
+)
+HP_K = hp.HParam(
+    'tpm_k',
+    domain=hp.IntInterval(4, 24),
+    display_name='K'
+)
+HP_N = hp.HParam(
+    'tpm_n',
+    domain=hp.IntInterval(4, 24),
+    display_name='N'
+)
+HP_L = hp.HParam(
+    'tpm_l',
+    domain=hp.IntInterval(4, 24),
+    display_name='L'
+)
+HP_ATTACK = hp.HParam(
+    'attack',
+    domain=hp.Discrete(['none', 'geometric']),
+    display_name='attack'
+)
+hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
+
+with writer.as_default():
+    hp.hparams_config(
+        hparams=hparams,
+        metrics=[
+            hp.Metric(
+                'time_taken',
+                display_name='Training Time (s)'
+            ),
+            hp.Metric(
+                'eve_score',
+                display_name='Eve Sync (%)'
+            ),
+            hp.Metric(
+                'loss',
+                display_name='Final Loss',
+                description='Average of S(Training Time) and Eve Sync'
+            )
+        ]
+    )
+
+
+@tf.function
+def objective(args):
+    global session_num
+    run_name = f"run-{session_num}"
+    # TODO: use os.path.join:
+    with tf.summary.create_file_writer(join(logdir, run_name)).as_default():
+        loss = run(*args)
+        hp.hparams({
+            HP_UPDATE_RULE: args[0],
+            HP_K: args[1].item(),
+            HP_N: args[2].item(),
+            HP_L: args[3].item(),
+            HP_ATTACK: args[4]
+        })
+    session_num += 1
+    return loss.numpy().item()
 
 
 @tf.function
@@ -232,56 +307,25 @@ def main():
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
-        HP_K = hp.HParam('tpm_k', hp.IntInterval(4, 24))  # 8
-        HP_N = hp.HParam('tpm_n', hp.IntInterval(4, 24))  # 12
-        HP_L = hp.HParam('tpm_l', hp.IntInterval(4, 24))  # 4
-        HP_UPDATE_RULE = hp.HParam('update_rule', hp.Discrete(
-            ['hebbian', 'anti_hebbian', 'random_walk']))  # hebbian
-        HP_ATTACK = hp.HParam('attack', hp.Discrete(
-            ['none', 'geometric']))  # none
-
-        hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
-
-        logdir = 'logs/hparams/' + str(datetime.now())
-        with tf.summary.create_file_writer(logdir).as_default():
-            hp.hparams_config(
-                hparams=hparams,
-                metrics=[
-                    hp.Metric('time_taken', display_name='Time'),
-                    hp.Metric('eve_score', display_name='Eve sync'),
-                    hp.Metric('loss', display_name='Final Loss')
-                ]
+        space = [
+            hyperopt.choice(
+                'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
+            ),
+            hyperopt.randint('tpm_k', 4, 24),
+            hyperopt.randint('tpm_n', 4, 24),
+            hyperopt.randint('tpm_l', 4, 24),
+            hyperopt.choice(
+                'attack', ['none', 'geometric']
             )
-        session_num = 0
-        for K in range(HP_K.domain.min_value, HP_K.domain.max_value):
-            for N in range(HP_N.domain.min_value, HP_N.domain.max_value):
-                for L in range(HP_L.domain.min_value, HP_L.domain.max_value):
-                    for update_rule in HP_UPDATE_RULE.domain.values:
-                        for attack in HP_ATTACK.domain.values:
-                            current_hparams = {
-                                HP_K: K,
-                                HP_N: N,
-                                HP_L: L,
-                                HP_UPDATE_RULE: update_rule,
-                                HP_ATTACK: attack
-                            }
-                            run_name = "run-%d" % session_num
-                            with tf.summary.create_file_writer(
-                                    logdir + '/' + run_name).as_default():
-                                run(update_rule, K, N, L, attack)
-                                hp.hparams(current_hparams)
-
-                                session_num += 1
-        print(f'Wrote log file to {logdir}')
+        ]
+        fmin(objective, space=space, algo=tpe.suggest)
     else:
         # tf.python.eager.profiler.start()
-        logdir = 'logs/' + str(datetime.now())
-        writer = tf.summary.create_file_writer(logdir)
         tf.summary.trace_on()
+        update_rule = 'hebbian'  # or anti_hebbian or random_walk
         K = 8
         N = 12
         L = 4
-        update_rule = 'hebbian'  # or anti_hebbian or random_walk
         key_length = 256
         iv_length = 128
         attack = 'none'

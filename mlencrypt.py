@@ -194,9 +194,9 @@ def objective(args):
         loss = run(*args)
         hp.hparams({
             HP_UPDATE_RULE: args[0],
-            HP_K: args[1].item(),
-            HP_N: args[2].item(),
-            HP_L: args[3].item(),
+            HP_K: args[1],
+            HP_N: args[2],
+            HP_L: args[3],
             HP_ATTACK: args[4]
         })
     session_num += 1

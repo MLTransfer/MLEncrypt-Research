@@ -45,6 +45,7 @@ def to_label(row):
     training_time = round(float(row[4]))
     score_none = round(float(row[5]), 3)
     score_geometric = round(float(row[6]), 3)
+    # print(f"[{ur},{K},{N},{L}:{training_time},{score_none},{score_geometric}],")
     return f"{ur},{K},{N},{L}:{training_time},{score_none},{score_geometric}"
 
 

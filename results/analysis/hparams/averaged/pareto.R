@@ -4,6 +4,10 @@ data <-
     "https://raw.githubusercontent.com/MLTransfer/MLEncrypt-Research/master/results/analysis/hparams/averaged/averaged.csv",
     header = T
   )
+data$update_rule <- gsub("anti_hebbian", 'ah', data$update_rule)
+data$update_rule <- gsub("hebbian", 'h', data$update_rule)
+data$update_rule <- gsub("random_walk", 'rw', data$update_rule)
+data$KN <- data$K*data$N
 
 library(dplyr)
 library(rPref)
@@ -34,14 +38,16 @@ skyline <-
     x = ~ adversary_score_none,
     y = ~ adversary_score_geometric,
     z = ~ training_time,
-    name = "All data"
+    name = "All data",
+    color = "#0000ff"
   ) %>%
   add_trace(
     data = res,
     x = ~ adversary_score_none,
     y = ~ adversary_score_geometric,
     z = ~ training_time,
-    name = "Pareto frontier"
+    name = "Pareto frontier",
+    color = "#6a0dad"
   ) %>%
   add_trace(
     data = res[order(res$adversary_score_none,
@@ -50,7 +56,8 @@ skyline <-
     x = ~ adversary_score_none,
     y = ~ adversary_score_geometric,
     z = ~ training_time,
-    type = "mesh3d"
+    type = "mesh3d",
+    color = "#6a0dad"
   )
 skyline
 

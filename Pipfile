@@ -10,6 +10,8 @@ tensorflow = "*"
 seaborn = "*"
 pandas = "*"
 torch = "*"
+bezier = "*"
+sympy = "*"
 
 [dev-packages]
 

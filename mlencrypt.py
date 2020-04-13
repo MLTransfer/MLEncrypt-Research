@@ -132,7 +132,6 @@ def run(update_rule, K, N, L, key_length=256, iv_length=128):
             "MLENCRYPT_ATTACK"] == 'GEOMETRIC' else
         TPM('Eve', K, N, L))
 
-    # Synchronize weights
     nb_updates = tf.Variable(0, name='nb_updates',
                              trainable=False, dtype=tf.int32)
     nb_eve_updates = tf.Variable(0, name='nb_eve_updates',

@@ -192,12 +192,11 @@ class TPM:
 
         current_key = convert_to_hex_dig(key, is_iv=False)
         current_iv = convert_to_hex_dig(iv, is_iv=True)
-        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-            with tf.name_scope(self.name):
-                tf.summary.text('independent variable',
-                                data=current_iv)
-                tf.summary.text('key',
-                                data=current_key)
+        with tf.name_scope(self.name):
+            tf.summary.text('independent variable',
+                            data=current_iv)
+            tf.summary.text('key',
+                            data=current_key)
         return (current_key, current_iv)
 
 

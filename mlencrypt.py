@@ -262,12 +262,13 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
             with tf.name_scope(Eve.name):
                 tf.summary.scalar('updates', data=nb_eve_updates)
 
-        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+            Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+            Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-        score.assign(tf.cast(100 * sync_score(Alice, Bob), tf.float32))
-        score_eve.assign(tf.cast(100 * sync_score(Alice, Eve), tf.float32))
+        score.assign(tf.cast(100. * sync_score(Alice, Bob), tf.float32))
+        score_eve.assign(tf.cast(100. * sync_score(Alice, Eve), tf.float32))
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             # log adversary score for Bob's weights
             sync_score(Bob, Eve)
@@ -298,7 +299,7 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
         if tf.math.greater_equal(
             tf.cast(score_eve, tf.float64),
-            tf.constant(100, tf.float64)
+            tf.constant(100., tf.float64)
         ):
             print("NOTE: Eve synced her machine with Alice's and Bob's!")
         else:

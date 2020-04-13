@@ -341,7 +341,7 @@ def main():
         fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
     else:
         tf.summary.trace_on()
-        update_rule = 'hebbian'  # or anti_hebbian or random_walk
+        update_rule = 'hebbian'
         K = 8
         N = 12
         L = 4
@@ -349,7 +349,11 @@ def main():
         iv_length = 128
         attack = 'none'
 
-        logdir = f'logs/ur={update_rule},K={K},N={N},L={L},attack={attack}'
+        logdir = join(
+            'logs/',
+            str(datetime.now()),
+            f"ur={update_rule},K={K},N={N},L={L},attack={attack}"
+        )
 
         with tf.summary.create_file_writer(logdir).as_default():
             run(update_rule, K, N, L, attack, key_length, iv_length)

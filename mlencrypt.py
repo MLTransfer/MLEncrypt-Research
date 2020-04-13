@@ -197,10 +197,13 @@ def objective(args):
 def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
     print(
         f"Creating machines: K={K}, N={N}, L={L}, "
-        + f"update-rule={update_rule}, "
-        + f"attack={attack}")
+        f"update-rule={update_rule}, "
+        f"attack={attack}"
+    )
     Alice = TPM('Alice', K, N, L)
     Bob = TPM('Bob', K, N, L)
+    # TODO: load class programatically
+    # https://stackoverflow.com/a/4821120/7127932
     Eve = ProbabilisticTPM('Eve', K, N, L) if attack == 'probabilistic' else (
         GeometricTPM('Eve', K, N, L) if attack == 'geometric' else
         TPM('Eve', K, N, L))
@@ -264,8 +267,11 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
             # log adversary score for Bob's weights
             sync_score(Bob, Eve)
 
-        tf.print("\rSynchronization = ", score, "%   /  Updates = ",
-                 nb_updates, " / Eve's updates = ", nb_eve_updates, sep='')
+        tf.print(
+            f"\rSynchronization = {score.numpy()}% / "
+            f"{nb_updates.numpy()} Updates (Alice) / "
+            f"{nb_eve_updates.numpy()} Updates (Eve)"
+        )
 
     end_time = perf_counter()
     time_taken = end_time - start_time
@@ -318,7 +324,7 @@ def main():
                 'attack', ['none', 'geometric']
             )
         ]
-        fmin(objective, space=space, algo=tpe.suggest)
+        fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
     else:
         # tf.python.eager.profiler.start()
         tf.summary.trace_on()

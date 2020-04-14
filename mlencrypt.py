@@ -338,7 +338,8 @@ def main():
                 'attack', ['none', 'geometric']
             )
         ]
-        fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
+        best = fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
+        print(best)
     else:
         tf.summary.trace_on()
         update_rule = 'hebbian'

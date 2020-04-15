@@ -6,6 +6,8 @@ from os import environ
 from datetime import datetime
 
 import tensorflow.summary
+from tensorflow import random as tfrandom
+from tensorflow import int64 as tfint64, function as tffunction
 from tensorboard.plugins.hparams import api as hp
 from hyperopt import hp as hyperopt, fmin, tpe
 from hyperopt.pyll.base import scope
@@ -117,32 +119,31 @@ def hparams():
 
     session_num = 0
 
-    @tf.function
+    @tffunction
     def objective(args):
-        global session_num
         run_name = f"run-{session_num}"
         K, N, L = args[1], args[2], args[3]
         run_logdir = join(logdir, run_name)
         # for each attack, the TPMs should start with the same weights
         initial_weights = {
-            'Alice': tf.random.uniform(
+            'Alice': tfrandom.uniform(
                 (K, N),
                 minval=-L,
                 maxval=L + 1,
-                dtype=tf.int64
+                dtype=tfint64
             ),
-            'Bob': tf.random.uniform(
+            'Bob': tfrandom.uniform(
                 (K, N),
                 minval=-L,
                 maxval=L + 1,
-                dtype=tf.int64
+                dtype=tfint64
             ),
             # TODO: doesn't work for probabilistic:
-            'Eve': tf.random.uniform(
+            'Eve': tfrandom.uniform(
                 (K, N),
                 minval=-L,
                 maxval=L + 1,
-                dtype=tf.int64
+                dtype=tfint64
             )
         }
         with tensorflow.summary.create_file_writer(run_logdir).as_default():
@@ -156,20 +157,21 @@ def hparams():
             run_eve_scores = {}
             run_losses = {}
             # for each attack, the TPMs should use the same inputs
-            seed = tf.random.uniform(
-                [1], minval=0, maxval=tf.int64.max, dtype=tf.int64).numpy()[0]
+            seed = tfrandom.uniform(
+                [1], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()[0]
             for attack in ['none', 'geometric']:
                 attack_logdir = join(run_logdir, attack)
                 with tensorflow.summary.create_file_writer(attack_logdir).as_default():
-                    tf.random.set_seed(seed)
+                    tfrandom.set_seed(seed)
                     run_training_times[attack], \
                         run_eve_scores[attack], \
                         run_losses[attack] = \
                         run(*args, attack, initial_weights=initial_weights)
-            avg_training_time = tf.math.reduce_mean(
+            avg_training_time = tensorflow.math.reduce_mean(
                 list(run_training_times.values()))
-            avg_eve_score = tf.math.reduce_mean(list(run_eve_scores.values()))
-            avg_loss = tf.math.reduce_mean(list(run_losses.values()))
+            avg_eve_score = tensorflow.math.reduce_mean(
+                list(run_eve_scores.values()))
+            avg_loss = tensorflow.math.reduce_mean(list(run_losses.values()))
             tensorflow.summary.scalar('training_time', avg_training_time)
             tensorflow.summary.scalar('eve_score', avg_eve_score)
             tensorflow.summary.scalar('avg_loss', avg_loss)

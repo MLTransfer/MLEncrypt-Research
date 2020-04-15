@@ -70,7 +70,7 @@ def tb_boxplot(name, data, xaxis):
 
 
 class TPM:
-    def __init__(self, name, K=8, N=12, L=4):
+    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
         """
         Args:
             K (int): The number of hidden perceptrons.
@@ -79,13 +79,15 @@ class TPM:
             L (int): The synaptic depth of each input perceptron's weights.
         """
         self.name = name
+        self.type = 'basic'
         with tf.name_scope(name):
             self.K = tf.constant(K)
             self.N = tf.constant(N)
             self.L = tf.constant(L)
-            self.W = tf.Variable(tf.random.uniform(
-                (K, N), minval=-L, maxval=L + 1, dtype=tf.int64),
-                trainable=True)
+            self.W = initial_weights if initial_weights is not None \
+                else tf.Variable(tf.random.uniform(
+                    (K, N), minval=-L, maxval=L + 1, dtype=tf.int64),
+                    trainable=True)
 
     def compute_sigma(self, X):
         """
@@ -100,7 +102,7 @@ class TPM:
             Each vector has dimension [K].
         """
         original = tf.math.sign(tf.math.reduce_sum(
-            tf.math.multiply(X, self.W), axis=1))
+            tf.math.multiply(X, tf.cast(self.W, tf.int64)), axis=1))
         nonzero = tf.where(tf.math.equal(original, 0), -1, original)
         return original, nonzero
 
@@ -184,14 +186,12 @@ class TPM:
                     iv += tf.strings.as_string(self.W[i, j])
                 key += tf.strings.as_string(self.W[i, j])
 
-        def convert_to_hex_dig(input, is_iv=True):
+        def convert_to_hex_dig(input, length):
             return hashlib.sha512(
-                str(input).encode('utf-8')).hexdigest()[0:int(iv_length / 4
-                                                              if is_iv else
-                                                              key_length / 4)]
+                str(input).encode('utf-8')).hexdigest()[0:length]
 
-        current_key = convert_to_hex_dig(key, is_iv=False)
-        current_iv = convert_to_hex_dig(iv, is_iv=True)
+        current_key = convert_to_hex_dig(key, int(key_length / 4))
+        current_iv = convert_to_hex_dig(iv, int(iv_length / 4))
         with tf.name_scope(self.name):
             tf.summary.text('independent variable',
                             data=current_iv)
@@ -209,8 +209,9 @@ class ProbabilisticTPM(TPM):
             distributions.
     """
 
-    def __init__(self, name, K=8, N=12, L=4):
-        super().__init__(name, K=8, N=12, L=4)
+    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
+        super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
+        self.type = 'probabilistic'
         self.W = tf.Variable(
             tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
 
@@ -254,6 +255,10 @@ class ProbabilisticTPM(TPM):
 
 
 class GeometricTPM(TPM):
+    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
+        super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
+        self.type = 'geometric'
+
     def update_sigma(self):
         """Updates sigma using the geometric algorithm.
 
@@ -267,7 +272,7 @@ class GeometricTPM(TPM):
         min = tf.math.argmin(tf.math.abs(h_i))  # index of min
         self.sigma[min].assign(tf.math.negative(original[min]))
 
-    def update(self, tau2, update_rule='hebbian', geometric=False):
+    def update(self, tau2, update_rule='hebbian'):
         """Updates the weights according to the specified update rule.
 
         Args:
@@ -275,30 +280,5 @@ class GeometricTPM(TPM):
             update_rule (str): The update rule, must be 'hebbian',
                 'anti_hebbian', or 'random_walk'.
         """
-        if geometric:
-            self.update_sigma()
-
-        if tf.math.equal(self.tau, tau2):
-            if tf.math.equal(update_rule, 'hebbian'):
-                hebbian(self.W, self.X, self.sigma, self.tau, tau2, self.L)
-            elif tf.math.equal(update_rule, 'anti_hebbian'):
-                anti_hebbian(self.W, self.X, self.sigma,
-                             self.tau, tau2, self.L)
-            elif tf.math.equal(update_rule, 'random_walk'):
-                random_walk(self.W, self.X, self.sigma,
-                            self.tau, tau2, self.L)
-            else:
-                raise Exception("Invalid update rule. Valid update rules are: "
-                                + "\'hebbian\', "
-                                + "\'anti_hebbian\' and "
-                                + "\'random_walk\'.")
-            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-                with tf.name_scope(self.name):
-                    hpaxis, ipaxis = tf.range(
-                        1, self.K + 1), tf.range(1, self.N + 1)
-                    tb_heatmap('weights', self.W, ipaxis, hpaxis)
-                    tb_boxplot('weights', self.W, hpaxis)
-                    for i in tf.range(self.K):
-                        with tf.name_scope(f'hperceptron{i+1}'):
-                            tb_summary('weights', self.W[i])
-                            tb_summary('sigma', self.sigma)
+        self.update_sigma()
+        TPM.update(self, tau2, update_rule=update_rule)

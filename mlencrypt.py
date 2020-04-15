@@ -9,9 +9,9 @@ from time import perf_counter
 
 import tensorflow as tf
 from tensorboard.plugins.hparams import api as hp
-from math import pi
 from hyperopt import hp as hyperopt, fmin, tpe
 from hyperopt.pyll.base import scope
+from math import pi
 
 
 tf.config.experimental_run_functions_eagerly(True)
@@ -129,7 +129,7 @@ def sync_score(TPM1, TPM2):
 
 
 # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
-environ["MLENCRYPT_HPARAMS"] = 'TRUE'
+environ["MLENCRYPT_HPARAMS"] = 'FALSE'
 
 if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
     logdir = f'logs/hparams/{datetime.now()}'
@@ -155,12 +155,7 @@ if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         domain=hp.IntInterval(4, 32),
         display_name='L'
     )
-    HP_ATTACK = hp.HParam(
-        'attack',
-        domain=hp.Discrete(['none', 'geometric']),
-        display_name='attack'
-    )
-    hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L, HP_ATTACK]
+    hparams = [HP_UPDATE_RULE, HP_K, HP_N, HP_L]
 
     with writer.as_default():
         hp.hparams_config(
@@ -168,16 +163,16 @@ if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
             metrics=[
                 hp.Metric(
                     'time_taken',
-                    display_name='Training Time (s)'
+                    display_name='Average Training Time (s)'
                 ),
                 hp.Metric(
                     'eve_score',
-                    display_name='Eve Sync (%)'
+                    display_name='Average Eve Sync (%)'
                 ),
                 hp.Metric(
-                    'loss',
-                    display_name='Final Loss',
-                    description='Average of S(Training Time) and Eve Sync'
+                    'avg_loss',
+                    display_name='Average Loss',
+                    description='Average of S(Training Time) and Eve Sync for each type of TPM.'
                 )
             ]
         )
@@ -189,39 +184,113 @@ session_num = 0
 def objective(args):
     global session_num
     run_name = f"run-{session_num}"
-    # TODO: use os.path.join:
-    with tf.summary.create_file_writer(join(logdir, run_name)).as_default():
-        loss = run(*args)
+    K, N, L = args[1], args[2], args[3]
+    run_logdir = join(logdir, run_name)
+    # TODO: use the same inputs:
+    initial_weights = {
+        'Alice': tf.Variable(
+            tf.random.uniform(
+                (K, N),
+                minval=-L,
+                maxval=L + 1,
+                dtype=tf.int64
+            ),
+            trainable=True
+        ),
+        'Bob': tf.Variable(
+            tf.random.uniform(
+                (K, N),
+                minval=-L,
+                maxval=L + 1,
+                dtype=tf.int64
+            ),
+            trainable=True
+        ),
+        # TODO: doesn't work for probabilistic:
+        'Eve': tf.Variable(
+            tf.random.uniform(
+                (K, N),
+                minval=-L,
+                maxval=L + 1,
+                dtype=tf.int64
+            ),
+            trainable=True
+        )
+    }
+    with tf.summary.create_file_writer(run_logdir).as_default():
         hp.hparams({
             HP_UPDATE_RULE: args[0],
-            HP_K: args[1],
-            HP_N: args[2],
-            HP_L: args[3],
-            HP_ATTACK: args[4]
+            HP_K: K,
+            HP_N: N,
+            HP_L: L
         })
-    session_num += 1
-    return loss.numpy().item()
+        run_training_times = {}
+        run_eve_scores = {}
+        run_losses = {}
+        for attack in ['none', 'geometric']:
+            attack_logdir = join(run_logdir, attack)
+            with tf.summary.create_file_writer(attack_logdir).as_default():
+                run_training_times[attack], run_eve_scores[attack], run_losses[attack] = run(
+                    *args, attack, initial_weights=initial_weights)
+        avg_training_time = tf.math.reduce_mean(
+            list(run_training_times.values()))
+        avg_eve_score = tf.math.reduce_mean(list(run_eve_scores.values()))
+        avg_loss = tf.math.reduce_mean(list(run_losses.values()))
+        tf.summary.scalar('time_taken', avg_training_time)
+        tf.summary.scalar('eve_score', avg_eve_score)
+        tf.summary.scalar('avg_loss', avg_loss)
+        session_num += 1
+
+    return avg_loss.numpy().item()
 
 
 @tf.function
-def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
+def run(
+    update_rule,
+    K,
+    N,
+    L,
+    attack,
+    initial_weights=None,
+    key_length=256,
+    iv_length=128
+):
     print(
         f"Creating machines: K={K}, N={N}, L={L}, "
         f"update-rule={update_rule}, "
         f"attack={attack}"
     )
-    Alice = TPM('Alice', K, N, L)
-    Bob = TPM('Bob', K, N, L)
-    # TODO: load class programatically
-    # https://stackoverflow.com/a/4821120/7127932
-    Eve = ProbabilisticTPM('Eve', K, N, L) if attack == 'probabilistic' else (
-        GeometricTPM('Eve', K, N, L) if attack == 'geometric' else
-        TPM('Eve', K, N, L))
+    if initial_weights:
+        Alice = TPM(
+            'Alice', K, N, L, initial_weights=initial_weights['Alice'].initialized_value())
+        Bob = TPM('Bob', K, N, L,
+                  initial_weights=initial_weights['Bob'].initialized_value())
+
+        # TODO: initialize class programatically
+        # https://stackoverflow.com/a/4821120/7127932
+        init_weights_eve = initial_weights['Eve'].initialized_value()
+        if attack == 'probabilistic':
+            Eve = ProbabilisticTPM(
+                'Eve', K, N, L, initial_weights=init_weights_eve)
+        elif attack == 'geometric':
+            Eve = GeometricTPM(
+                'Eve', K, N, L, initial_weights=init_weights_eve)
+        else:
+            Eve = TPM('Eve', K, N, L, initial_weights=init_weights_eve)
+    else:
+        Alice = TPM('Alice', K, N, L)
+        Bob = TPM('Bob', K, N, L)
+
+        # TODO: load class programatically
+        # https://stackoverflow.com/a/4821120/7127932
+        Eve = ProbabilisticTPM('Eve', K, N, L) if attack == 'probabilistic' \
+            else (GeometricTPM('Eve', K, N, L) if attack == 'geometric'
+                  else TPM('Eve', K, N, L))
 
     nb_updates = tf.Variable(0, name='nb_updates',
-                             trainable=False, dtype=tf.int32)
+                             trainable=False, dtype=tf.uint16)
     nb_eve_updates = tf.Variable(0, name='nb_eve_updates',
-                                 trainable=False, dtype=tf.int32)
+                                 trainable=False, dtype=tf.uint16)
     tf.summary.experimental.set_step(0)
     start_time = perf_counter()
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
@@ -260,8 +329,8 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
         if tauA == tauB == tauE:
             Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
-        elif (tauA == tauB != tauE) and attack == 'geometric':
-            Eve.update(tauA, update_rule, geometric=True)
+        elif (tauA == tauB != tauE) and Eve.type == 'geometric':
+            Eve.update(tauA, update_rule)
             nb_eve_updates.assign_add(1, use_locking=True)
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             with tf.name_scope(Eve.name):
@@ -308,16 +377,10 @@ def run(update_rule, K, N, L, attack, key_length=256, iv_length=128):
              "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
-        if tf.math.greater_equal(
-            tf.cast(score_eve, tf.float64),
-            tf.constant(100., tf.float64)
-        ):
-            print("NOTE: Eve synced her machine with Alice's and Bob's!")
-        else:
-            tf.print("Eve's machine is ", score_eve,
-                     "% synced with Alice's and Bob's and she did ",
-                     nb_eve_updates, " updates.", sep='')
-        return loss
+        tf.print("Eve's machine is ", score_eve,
+                 "% synced with Alice's and Bob's and she did ",
+                 nb_eve_updates, " updates.", sep='')
+        return time_taken, score_eve, loss
 
     else:
         print("ERROR: cipher impossible; Alice and Bob have different key/IV")
@@ -333,12 +396,10 @@ def main():
             ),
             scope.int(hyperopt.quniform('tpm_k', 4, 32, q=1)),
             scope.int(hyperopt.quniform('tpm_n', 4, 32, q=1)),
-            scope.int(hyperopt.quniform('tpm_l', 4, 32, q=1)),
-            hyperopt.choice(
-                'attack', ['none', 'geometric']
-            )
+            scope.int(hyperopt.quniform('tpm_l', 4, 32, q=1))
         ]
-        best = fmin(objective, space=space, algo=tpe.suggest, max_evals=400)
+        # TODO: is atpe.suggest better?
+        best = fmin(objective, space=space, algo=tpe.suggest, max_evals=100)
         print(best)
     else:
         tf.summary.trace_on()
@@ -346,9 +407,10 @@ def main():
         K = 8
         N = 12
         L = 4
+        attack = 'none'
+        initial_weights = None
         key_length = 256
         iv_length = 128
-        attack = 'none'
 
         logdir = join(
             'logs/',
@@ -357,7 +419,16 @@ def main():
         )
 
         with tf.summary.create_file_writer(logdir).as_default():
-            run(update_rule, K, N, L, attack, key_length, iv_length)
+            run(
+                update_rule,
+                K,
+                N,
+                L,
+                attack,
+                initial_weights,
+                key_length,
+                iv_length
+            )
             tf.summary.trace_export("graph")
 
 

@@ -129,7 +129,7 @@ def sync_score(TPM1, TPM2):
 
 
 # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
-environ["MLENCRYPT_HPARAMS"] = 'FALSE'
+environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
 if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
     logdir = f'logs/hparams/{datetime.now()}'
@@ -162,7 +162,7 @@ if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
             hparams=hparams,
             metrics=[
                 hp.Metric(
-                    'time_taken',
+                    'training_time',
                     display_name='Average Training Time (s)'
                 ),
                 hp.Metric(
@@ -186,35 +186,26 @@ def objective(args):
     run_name = f"run-{session_num}"
     K, N, L = args[1], args[2], args[3]
     run_logdir = join(logdir, run_name)
-    # TODO: use the same inputs:
+    # for each attack, the TPMs should start with the same weights
     initial_weights = {
-        'Alice': tf.Variable(
-            tf.random.uniform(
-                (K, N),
-                minval=-L,
-                maxval=L + 1,
-                dtype=tf.int64
-            ),
-            trainable=True
+        'Alice': tf.random.uniform(
+            (K, N),
+            minval=-L,
+            maxval=L + 1,
+            dtype=tf.int64
         ),
-        'Bob': tf.Variable(
-            tf.random.uniform(
-                (K, N),
-                minval=-L,
-                maxval=L + 1,
-                dtype=tf.int64
-            ),
-            trainable=True
+        'Bob': tf.random.uniform(
+            (K, N),
+            minval=-L,
+            maxval=L + 1,
+            dtype=tf.int64
         ),
         # TODO: doesn't work for probabilistic:
-        'Eve': tf.Variable(
-            tf.random.uniform(
-                (K, N),
-                minval=-L,
-                maxval=L + 1,
-                dtype=tf.int64
-            ),
-            trainable=True
+        'Eve': tf.random.uniform(
+            (K, N),
+            minval=-L,
+            maxval=L + 1,
+            dtype=tf.int64
         )
     }
     with tf.summary.create_file_writer(run_logdir).as_default():
@@ -227,16 +218,22 @@ def objective(args):
         run_training_times = {}
         run_eve_scores = {}
         run_losses = {}
+        # for each attack, the TPMs should use the same inputs
+        seed = tf.random.uniform(
+            [1], minval=0, maxval=tf.int64.max, dtype=tf.int64).numpy()[0]
         for attack in ['none', 'geometric']:
             attack_logdir = join(run_logdir, attack)
             with tf.summary.create_file_writer(attack_logdir).as_default():
-                run_training_times[attack], run_eve_scores[attack], run_losses[attack] = run(
-                    *args, attack, initial_weights=initial_weights)
+                tf.random.set_seed(seed)
+                run_training_times[attack], \
+                    run_eve_scores[attack], \
+                    run_losses[attack] = \
+                    run(*args, attack, initial_weights=initial_weights)
         avg_training_time = tf.math.reduce_mean(
             list(run_training_times.values()))
         avg_eve_score = tf.math.reduce_mean(list(run_eve_scores.values()))
         avg_loss = tf.math.reduce_mean(list(run_losses.values()))
-        tf.summary.scalar('time_taken', avg_training_time)
+        tf.summary.scalar('training_time', avg_training_time)
         tf.summary.scalar('eve_score', avg_eve_score)
         tf.summary.scalar('avg_loss', avg_loss)
         session_num += 1
@@ -261,14 +258,16 @@ def run(
         f"attack={attack}"
     )
     if initial_weights:
-        Alice = TPM(
-            'Alice', K, N, L, initial_weights=initial_weights['Alice'].initialized_value())
-        Bob = TPM('Bob', K, N, L,
-                  initial_weights=initial_weights['Bob'].initialized_value())
+        init_weights_alice = tf.Variable(
+            initial_weights['Alice'], trainable=True)
+        Alice = TPM('Alice', K, N, L, initial_weights=init_weights_alice)
+
+        init_weights_bob = tf.Variable(initial_weights['Bob'], trainable=True)
+        Bob = TPM('Bob', K, N, L, initial_weights=init_weights_bob)
 
         # TODO: initialize class programatically
         # https://stackoverflow.com/a/4821120/7127932
-        init_weights_eve = initial_weights['Eve'].initialized_value()
+        init_weights_eve = tf.Variable(initial_weights['Eve'], trainable=True)
         if attack == 'probabilistic':
             Eve = ProbabilisticTPM(
                 'Eve', K, N, L, initial_weights=init_weights_eve)
@@ -279,6 +278,7 @@ def run(
             Eve = TPM('Eve', K, N, L, initial_weights=init_weights_eve)
     else:
         Alice = TPM('Alice', K, N, L)
+
         Bob = TPM('Bob', K, N, L)
 
         # TODO: load class programatically
@@ -296,11 +296,15 @@ def run(
     score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
     score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
+    tmp = 0
     # instead of while, use for until L^4*K*N
     while score < 100 and not tf.reduce_all(tf.math.equal(Alice.W, Bob.W)):
         # Create random vector [K, N]
         X = tf.Variable(tf.random.uniform(
             (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
+        if tmp == 2:
+            print(X)
+        tmp += 1
         if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
             tb_summary('inputs', X)
             hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
@@ -354,11 +358,11 @@ def run(
         )
 
     end_time = perf_counter()
-    time_taken = end_time - start_time
-    loss = (tf.math.sigmoid(time_taken) + score_eve / 100.) / 2.
+    training_time = end_time - start_time
+    loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         # creates scatterplot (in scalars) dashboard of metric vs steps
-        tf.summary.scalar('time_taken', time_taken)
+        tf.summary.scalar('training_time', training_time)
         tf.summary.scalar('eve_score', score_eve)
         tf.summary.scalar('loss', loss)
 
@@ -368,19 +372,17 @@ def run(
         Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-    tf.print("\nTime taken =", time_taken, "seconds.")
+    tf.print("\nTraining time =", training_time, "seconds.")
     tf.print("Alice's gen key =", Alice_key,
              "key :", Alice_key, "iv :", Alice_iv)
-    tf.print("Bob's gen key =", Bob_key,
-             "key :", Bob_key, "iv :", Bob_iv)
-    tf.print("Eve's gen key =", Eve_key,
-             "key :", Eve_key, "iv :", Eve_iv)
+    tf.print("Bob's gen key =", Bob_key, "key :", Bob_key, "iv :", Bob_iv)
+    tf.print("Eve's gen key =", Eve_key, "key :", Eve_key, "iv :", Eve_iv)
 
     if Alice_key == Bob_key and Alice_iv == Bob_iv:
         tf.print("Eve's machine is ", score_eve,
                  "% synced with Alice's and Bob's and she did ",
                  nb_eve_updates, " updates.", sep='')
-        return time_taken, score_eve, loss
+        return training_time, score_eve, loss
 
     else:
         print("ERROR: cipher impossible; Alice and Bob have different key/IV")
@@ -396,7 +398,7 @@ def main():
             ),
             scope.int(hyperopt.quniform('tpm_k', 4, 32, q=1)),
             scope.int(hyperopt.quniform('tpm_n', 4, 32, q=1)),
-            scope.int(hyperopt.quniform('tpm_l', 4, 32, q=1))
+            scope.int(hyperopt.quniform('tpm_l', 4, 128, q=1))
         ]
         # TODO: is atpe.suggest better?
         best = fmin(objective, space=space, algo=tpe.suggest, max_evals=100)

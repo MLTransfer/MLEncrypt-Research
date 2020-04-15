@@ -4,6 +4,7 @@ from mlencrypt import run
 from os.path import join
 from os import environ
 from datetime import datetime
+from glob import glob
 
 import tensorflow.summary
 from tensorflow import random as tfrandom
@@ -117,11 +118,18 @@ def hparams():
             ]
         )
 
-    session_num = 0
+    def get_session_num(logdir):
+        current_runs = glob(join(logdir, "run-*"))
+        if current_runs:
+            last_run_path = current_runs[-1]
+            last_run_session_num = int(last_run_path.split('-')[-1])
+            return last_run_session_num+1
+        else:
+            return 0
 
     @tffunction
     def objective(args):
-        run_name = f"run-{session_num}"
+        run_name = f"run-{get_session_num(logdir)}"
         K, N, L = args[1], args[2], args[3]
         run_logdir = join(logdir, run_name)
         # for each attack, the TPMs should start with the same weights
@@ -175,7 +183,6 @@ def hparams():
             tensorflow.summary.scalar('training_time', avg_training_time)
             tensorflow.summary.scalar('eve_score', avg_eve_score)
             tensorflow.summary.scalar('avg_loss', avg_loss)
-            session_num += 1
 
         return avg_loss.numpy().item()
 
@@ -183,9 +190,9 @@ def hparams():
         hyperopt.choice(
             'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
         ),
-        scope.int(hyperopt.quniform('tpm_k', 4, 32, q=1)),
-        scope.int(hyperopt.quniform('tpm_n', 4, 32, q=1)),
-        scope.int(hyperopt.quniform('tpm_l', 4, 128, q=1))
+        scope.int(hyperopt.quniform('tpm_k', 4, 6, q=1)),
+        scope.int(hyperopt.quniform('tpm_n', 4, 6, q=1)),
+        scope.int(hyperopt.quniform('tpm_l', 4, 6, q=1))
     ]
     # TODO: is atpe.suggest better?
     best = fmin(objective, space=space, algo=tpe.suggest, max_evals=100)

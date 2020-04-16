@@ -4,14 +4,8 @@ from mlencrypt import run
 from os.path import join
 from os import environ
 from datetime import datetime
-from glob import glob
 
 import tensorflow.summary
-from tensorflow import random as tfrandom
-from tensorflow import int64 as tfint64, function as tffunction
-from tensorboard.plugins.hparams import api as hp
-from hyperopt import hp as hyperopt, fmin, tpe
-from hyperopt.pyll.base import scope
 
 
 @click.group()
@@ -70,6 +64,14 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
 
 @cli.command(name='hparams')
 def hparams():
+    from glob import glob
+
+    from tensorflow import random as tfrandom
+    from tensorflow import int64 as tfint64, function as tffunction
+    from tensorboard.plugins.hparams import api as hp
+    from hyperopt import hp as hyperopt, fmin, tpe
+    from hyperopt.pyll.base import scope
+
     # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
@@ -123,8 +125,8 @@ def hparams():
         if current_runs:
             last_run_path = current_runs[-1]
             last_run_session_num = int(last_run_path.split('-')[-1])
-            return last_run_session_num+1
-        else:
+            return last_run_session_num + 1
+        else:  # there are no runs yet, start at 0
             return 0
 
     @tffunction

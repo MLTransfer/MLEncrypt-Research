@@ -9,9 +9,6 @@ import tensorflow as tf
 from math import pi
 
 
-tf.config.experimental_run_functions_eagerly(True)
-
-
 def compute_overlap_matrix(N, L, w1, w2):
     """Computes the overlap matrix for the two vectors provided.
 
@@ -81,7 +78,6 @@ def compute_overlap_from_matrix(N, L, f):
     return rho
 
 
-@tf.function
 def sync_score(TPM1, TPM2):
     """
     Args:
@@ -93,17 +89,17 @@ def sync_score(TPM1, TPM2):
     # rho = tf.Variable(0., dtype=tf.float64)
     #
     # for i in tf.range(TPM1.K):
-    #     f = compute_overlap_matrix(TPM1.N, TPM1.L, TPM1.W[i], TPM2.W[i])
+    #     f = compute_overlap_matrix(TPM1.N, TPM1.L, TPM1.w[i], TPM2.w[i])
     #     rho.assign_add(tf.math.divide(compute_overlap_from_matrix(
     #         TPM1.N, TPM1.L, f), tf.cast(TPM1.K, tf.float64)))
 
     rho = tf.math.subtract(
-        1.,
+        tf.cast(1., tf.float64),
         tf.math.reduce_mean(
             tf.math.divide(
                 tf.cast(tf.math.abs(tf.math.subtract(
-                    TPM1.W,
-                    TPM2.W
+                    TPM1.w,
+                    TPM2.w
                 )), tf.float64),
                 (2. * tf.cast(TPM1.L, tf.float64))
             )
@@ -111,133 +107,189 @@ def sync_score(TPM1, TPM2):
     )
 
     epsilon = tf.math.multiply(
-        tf.constant(tf.math.reciprocal(pi), tf.float32),
+        tf.constant(1. / pi, tf.float32),
         tf.cast(tf.math.acos(rho), tf.float32)
     )
 
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-        with tf.name_scope(f'{TPM1.name} + {TPM2.name}'):
-            tf.summary.scalar('sync', data=rho)
-            tf.summary.scalar('generalization-error', data=epsilon)
+        # TODO: 'Alice + Bob' is not a valid scope name
+
+        # it's not that f-strings are evaluated at runtime, since
+        # with tf.name_scope(TPM1.name + ' and ' + TPM2.name):
+        # didn't work
+
+        # with tf.name_scope(f'{TPM1.name} and {TPM2.name}'):
+        tf.summary.scalar('sync', data=rho)
+        tf.summary.scalar('generalization-error', data=epsilon)
 
     return rho
 
 
 @tf.function
-def run(
-    update_rule,
-    K,
-    N,
-    L,
-    attack,
-    initial_weights=None,
-    key_length=256,
-    iv_length=128
+def iterate(
+    X,
+    Alice, Bob, Eve, update_rule,
+    nb_updates, nb_eve_updates,
+    score, score_eve,
+    key_length, iv_length
 ):
-    print(
+    tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+
+    # TODO: make update_rule an attribute of the TPMs
+    # TODO: can Alice and Bob use different update rules?
+
+    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+        # TODO: don't refer to variables outside of the method scope,
+        # add them as arguments (maybe tf.numpy_function) will help
+        def log_inputs(inputs):
+            tb_summary('inputs', inputs)
+            # TODO: uncomment this:
+            # K, N = Alice.K, Alice.N
+            # hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+            # tb_heatmap('inputs', X, ipaxis, hpaxis)
+            # tb_boxplot('inputs', X, hpaxis)
+        tf.py_function(log_inputs, [X], [])
+
+    # compute outputs of TPMs
+    with tf.name_scope(Alice.name):
+        tauA = Alice.get_output(X)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            tf.summary.scalar('tau', data=tauA)
+    with tf.name_scope(Bob.name):
+        tauB = Bob.get_output(X)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            tf.summary.scalar('tau', data=tauB)
+    with tf.name_scope(Eve.name):
+        tauE = Eve.get_output(X)
+        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+            tf.summary.scalar('tau', data=tauE)
+
+    Alice.update(tauB, update_rule)
+    Bob.update(tauA, update_rule)
+    nb_updates.assign_add(1)
+    tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+
+    # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
+    # due to the associative law of boolean multiplication
+    if tf.math.equal(tauA, tauB) and tf.math.equal(tauB, tauE):
+        Eve.update(tauA, update_rule)
+        nb_eve_updates.assign_add(1)
+    # if tauA equals tauB and tauB does not tauE
+    # then tauA does not equal tauE
+    elif (tf.math.equal(tauA, tauB) and tf.math.not_equal(tauA, tauE)) \
+            and Eve.type == 'geometric':
+        Eve.update(tauA, update_rule)
+        nb_eve_updates.assign_add(1)
+    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+        with tf.name_scope(Eve.name):
+            tf.summary.scalar('updates', data=nb_eve_updates)
+
+    # if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+    #     Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+    #     Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+    #     Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+
+    score.assign(tf.cast(100. * sync_score(Alice, Bob), tf.float32))
+    score_eve.assign(tf.cast(100. * sync_score(Alice, Eve), tf.float32))
+    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+        # log adversary score for Bob's weights
+        sync_score(Bob, Eve)
+
+    tf.print(
+        "\rSynchronization = ", score, "% / ",
+        nb_updates, " Updates (Alice) / ",
+        nb_eve_updates, " Updates (Eve)",
+        sep=''
+    )
+
+
+# @tf.function
+def run(
+    update_rule, K, N, L,
+    attack,
+    initial_weights,
+    key_length=256, iv_length=128
+):
+    tf.print("\n\n")
+    tf.print(
         f"Creating machines: K={K}, N={N}, L={L}, "
         f"update-rule={update_rule}, "
         f"attack={attack}"
     )
-    if initial_weights:
-        init_weights_alice = tf.Variable(
-            initial_weights['Alice'], trainable=True)
-        Alice = TPM('Alice', K, N, L, initial_weights=init_weights_alice)
+    Alice = TPM('Alice', K, N, L, initial_weights['Alice'])
 
-        init_weights_bob = tf.Variable(initial_weights['Bob'], trainable=True)
-        Bob = TPM('Bob', K, N, L, initial_weights=init_weights_bob)
+    Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
-        # TODO: initialize class programatically
-        # https://stackoverflow.com/a/4821120/7127932
-        init_weights_eve = tf.Variable(initial_weights['Eve'], trainable=True)
-        if attack == 'probabilistic':
-            Eve = ProbabilisticTPM(
-                'Eve', K, N, L, initial_weights=init_weights_eve)
-        elif attack == 'geometric':
-            Eve = GeometricTPM(
-                'Eve', K, N, L, initial_weights=init_weights_eve)
-        else:
-            Eve = TPM('Eve', K, N, L, initial_weights=init_weights_eve)
-    else:
-        Alice = TPM('Alice', K, N, L)
+    # TODO: load class programatically
+    # https://stackoverflow.com/a/4821120/7127932
+    initial_weights_eve = initial_weights['Eve']
+    Eve = ProbabilisticTPM(
+        'Eve', K, N, L, initial_weights_eve
+    ) if attack == 'probabilistic' \
+        else (GeometricTPM(
+            'Eve', K, N, L, initial_weights_eve
+        ) if attack == 'geometric'
+        else TPM(
+            'Eve', K, N, L, initial_weights_eve
+        ))
 
-        Bob = TPM('Bob', K, N, L)
+    try:
+        # synchronization score of Alice and Bob
+        score = tf.Variable(0.0, trainable=False)
+    except ValueError:
+        # tf.function-decorated function tried to create variables
+        # on non-first call.
+        score = 0.
+    try:
+        # synchronization score of Alice and Eve
+        score_eve = tf.Variable(0.0, trainable=False)
+    except ValueError:
+        # tf.function-decorated function tried to create variables
+        # on non-first call.
+        score_eve = 0.
 
-        # TODO: load class programatically
-        # https://stackoverflow.com/a/4821120/7127932
-        Eve = ProbabilisticTPM('Eve', K, N, L) if attack == 'probabilistic' \
-            else (GeometricTPM('Eve', K, N, L) if attack == 'geometric'
-                  else TPM('Eve', K, N, L))
+    # https://www.tensorflow.org/tutorials/customization/performance#zero_iterations
+    Alice_key, Alice_iv = tf.constant(""), tf.constant("")
+    Bob_key, Bob_iv = tf.constant(""), tf.constant("")
+    Eve_key, Eve_iv = tf.constant(""), tf.constant("")
 
-    nb_updates = tf.Variable(0, name='nb_updates',
-                             trainable=False, dtype=tf.uint16)
-    nb_eve_updates = tf.Variable(0, name='nb_eve_updates',
-                                 trainable=False, dtype=tf.uint16)
+    try:
+        nb_updates = tf.Variable(
+            0, name='nb_updates', trainable=False, dtype=tf.uint16)
+    except ValueError:
+        # tf.function-decorated function tried to create variables
+        # on non-first call.
+        pass
+    try:
+        nb_eve_updates = tf.Variable(
+            0, name='nb_eve_updates', trainable=False, dtype=tf.uint16)
+    except ValueError:
+        # tf.function-decorated function tried to create variables
+        # on non-first call.
+        pass
     tf.summary.experimental.set_step(0)
     start_time = perf_counter()
-    score = tf.Variable(0.0)  # synchronisation score of Alice and Bob
-    score_eve = tf.Variable(0.0)  # synchronisation score of Alice and Eve
 
-    # instead of while, use for until L^4*K*N
-    while score < 100 and not tf.reduce_all(tf.math.equal(Alice.W, Bob.W)):
-        # Create random vector [K, N]
-        X = tf.Variable(tf.random.uniform(
-            (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64))
-        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-            tb_summary('inputs', X)
-            hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
-            tb_heatmap('inputs', X, ipaxis, hpaxis)
-            tb_boxplot('inputs', X, hpaxis)
-
-        # compute outputs of TPMs
-        with tf.name_scope(Alice.name):
-            tauA = Alice.get_output(X)
-            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-                tf.summary.scalar('tau', data=tauA)
-        with tf.name_scope(Bob.name):
-            tauB = Bob.get_output(X)
-            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-                tf.summary.scalar('tau', data=tauB)
-        with tf.name_scope(Eve.name):
-            tauE = Eve.get_output(X)
-            if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-                tf.summary.scalar('tau', data=tauE)
-
-        Alice.update(tauB, update_rule)
-        Bob.update(tauA, update_rule)
-        nb_updates.assign_add(1, use_locking=True)
-        tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
-
-        if tauA == tauB == tauE:
-            Eve.update(tauA, update_rule)
-            nb_eve_updates.assign_add(1, use_locking=True)
-        elif (tauA == tauB != tauE) and Eve.type == 'geometric':
-            Eve.update(tauA, update_rule)
-            nb_eve_updates.assign_add(1, use_locking=True)
-        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-            with tf.name_scope(Eve.name):
-                tf.summary.scalar('updates', data=nb_eve_updates)
-
-        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-            Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-            Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-            Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
-
-        score.assign(tf.cast(100. * sync_score(Alice, Bob), tf.float32))
-        score_eve.assign(tf.cast(100. * sync_score(Alice, Eve), tf.float32))
-        if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-            # log adversary score for Bob's weights
-            sync_score(Bob, Eve)
-
-        tf.print(
-            f"\rSynchronization = {score.numpy()}% / "
-            f"{nb_updates.numpy()} Updates (Alice) / "
-            f"{nb_eve_updates.numpy()} Updates (Eve)"
+    # instead of while, use for until L^4*K*N and break
+    while score < 100. and not tf.reduce_all(tf.math.equal(Alice.w, Bob.w)):
+        # Create random vector, X, with dimensions [K, N] and values {-1, 0, 1}
+        iterate(
+            tf.Variable(
+                tf.random.uniform(
+                    (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64),
+                trainable=False
+            ),
+            Alice, Bob, Eve, update_rule,
+            nb_updates, nb_eve_updates,
+            score, score_eve,
+            key_length, iv_length
         )
+        tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
     end_time = perf_counter()
     training_time = end_time - start_time
     loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
+    key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
     if environ["MLENCRYPT_HPARAMS"] == 'TRUE':
         # creates scatterplot (in scalars) dashboard of metric vs steps
         tf.summary.scalar('training_time', training_time)
@@ -249,20 +301,26 @@ def run(
         Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
         Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+    else:
+        # if hparams is not enabled, the keys and IVs have already been created
+        # Alice_key, Alice_iv = Alice.key, Alice.iv
+        # Bob_key, Bob_iv = Bob.key, Bob.iv
+        # Eve_key, Eve_iv = Eve.key, Eve.iv
+        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-    tf.print("\nTraining time =", training_time, "seconds.")
-    tf.print("Alice's gen key =", Alice_key,
-             "key :", Alice_key, "iv :", Alice_iv)
-    tf.print("Bob's gen key =", Bob_key, "key :", Bob_key, "iv :", Bob_iv)
-    tf.print("Eve's gen key =", Eve_key, "key :", Eve_key, "iv :", Eve_iv)
+    tf.print()
+    tf.print("Training time =", training_time, "seconds.")
+    tf.print("Alice's key :", Alice_key, "iv :", Alice_iv)
+    tf.print("Bob's key :", Bob_key, "iv :", Bob_iv)
+    tf.print("Eve's key :", Eve_key, "iv :", Eve_iv)
 
-    if Alice_key == Bob_key and Alice_iv == Bob_iv:
+    if tf.math.equal(Alice_key, Bob_key) and tf.math.equal(Alice_iv, Bob_iv):
         tf.print("Eve's machine is ", score_eve,
                  "% synced with Alice's and Bob's and she did ",
                  nb_eve_updates, " updates.", sep='')
-        return training_time, score_eve, loss
 
-    else:
-        print("ERROR: cipher impossible; Alice and Bob have different key/IV")
-
-    print("\n\n")
+    # TODO: are these returns value valid if the keys don't match?
+    # this is here because we have to return something in tf graph mode
+    return training_time, score_eve, loss

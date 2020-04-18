@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-import hashlib
-import tensorflow as tf
-
 from update_rules import hebbian, anti_hebbian, random_walk
 
+import hashlib
 from os import remove, environ
 
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -69,8 +68,8 @@ def tb_boxplot(name, data, xaxis):
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
 
 
-class TPM:
-    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
+class TPM(tf.Module):
+    def __init__(self, name, K, N, L, initial_weights):
         """
         Args:
             K (int): The number of hidden perceptrons.
@@ -78,16 +77,18 @@ class TPM:
                 perceptron has.
             L (int): The synaptic depth of each input perceptron's weights.
         """
-        self.name = name
+        super(TPM, self).__init__(name=name)
         self.type = 'basic'
-        with tf.name_scope(name):
+        self.sigma = tf.Variable(
+            tf.zeros([K], dtype=tf.int64),
+            trainable=False,
+            name='sigma'
+        )
+        with self.name_scope:
             self.K = tf.constant(K)
             self.N = tf.constant(N)
             self.L = tf.constant(L)
-            self.W = initial_weights if initial_weights is not None \
-                else tf.Variable(tf.random.uniform(
-                    (K, N), minval=-L, maxval=L + 1, dtype=tf.int64),
-                    trainable=True)
+            self.w = initial_weights
 
     def compute_sigma(self, X):
         """
@@ -102,8 +103,12 @@ class TPM:
             Each vector has dimension [K].
         """
         original = tf.math.sign(tf.math.reduce_sum(
-            tf.math.multiply(X, tf.cast(self.W, tf.int64)), axis=1))
-        nonzero = tf.where(tf.math.equal(original, 0), -1, original)
+            tf.math.multiply(X, tf.cast(self.w, tf.int64)), axis=1))
+        nonzero = tf.where(
+            tf.math.equal(original, 0),
+            tf.cast(-1, tf.int64),
+            original
+        )
         return original, nonzero
 
     def get_output(self, X):
@@ -122,9 +127,9 @@ class TPM:
         # compute output of TPM, binary scalar
         tau = tf.math.reduce_prod(nonzero)
 
-        with tf.name_scope(self.name):
+        with self.name_scope:
             self.X = X
-            self.sigma = tf.Variable(sigma)
+            self.sigma.assign(sigma)
             self.tau = tau
 
         return tau
@@ -141,30 +146,40 @@ class TPM:
                 'anti_hebbian', or 'random_walk'.
         """
         if tf.math.equal(self.tau, tau2):
-            if tf.math.equal(update_rule, 'hebbian'):
-                hebbian(self.W, self.X, self.sigma, self.tau, tau2, self.L)
-            elif tf.math.equal(update_rule, 'anti_hebbian'):
-                anti_hebbian(self.W, self.X, self.sigma,
+            if update_rule == 'hebbian':
+                hebbian(self.w, self.X, self.sigma, self.tau, tau2, self.L)
+            elif update_rule == 'anti_hebbian':
+                anti_hebbian(self.w, self.X, self.sigma,
                              self.tau, tau2, self.L)
-            elif tf.math.equal(update_rule, 'random_walk'):
-                random_walk(self.W, self.X, self.sigma,
+            elif update_rule == 'random_walk':
+                random_walk(self.w, self.X, self.sigma,
                             self.tau, tau2, self.L)
             else:
-                raise Exception("Invalid update rule. Valid update rules are: "
-                                + "\'hebbian\', "
-                                + "\'anti_hebbian\' and "
-                                + "\'random_walk\'.")
+                raise ValueError(
+                    f"'{update_rule}' is an invalid update rule. "
+                    + "Valid update rules are: "
+                    + "\'hebbian\', "
+                    + "\'anti_hebbian\' and "
+                    + "\'random_walk\'."
+                )
             if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-                with tf.name_scope(self.name):
-                    hpaxis, ipaxis = tf.range(
-                        1, self.K + 1), tf.range(1, self.N + 1)
-                    tb_heatmap('weights', self.W, ipaxis, hpaxis)
-                    tb_boxplot('weights', self.W, hpaxis)
+                # TODO: don't refer to variables outside of the method scope,
+                # add them as arguments (maybe tf.numpy_function) will help
+                with self.name_scope:
                     tb_summary('sigma', self.sigma)
-                    for i in tf.range(self.K):
-                        with tf.name_scope(f'hperceptron{i+1}'):
-                            tb_summary('weights', self.W[i])
-                    tf.summary.histogram('weights', self.W)
+                    tf.summary.histogram('weights', self.w)
+
+                    def log_images():
+                        for i in range(self.K):
+                            with tf.name_scope(f'hperceptron{i+1}'):
+                                tb_summary('weights', self.w[i])
+
+                        # hpaxis, ipaxis = tf.range(
+                        #     1, self.K + 1), tf.range(1, self.N + 1)
+                        # tb_heatmap('weights', self.w, ipaxis, hpaxis)
+                        # tb_boxplot('weights', self.w, hpaxis)
+                        # pass
+                    tf.py_function(log_images, [], [])
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
@@ -177,27 +192,43 @@ class TPM:
         Returns:
             The key and IV based on the TPM's weights.
         """
-        key = ""
-        iv = ""
+        key_weights = tf.constant("")
+        iv_weights = tf.constant("")
 
         for i in tf.range(self.K):
             for j in tf.range(self.N):
                 if tf.math.equal(i, j):
-                    iv += tf.strings.as_string(self.W[i, j])
-                key += tf.strings.as_string(self.W[i, j])
+                    iv_weights += tf.strings.as_string(self.w[i, j])
+                key_weights += tf.strings.as_string(self.w[i, j])
 
         def convert_to_hex_dig(input, length):
             return hashlib.sha512(
-                str(input).encode('utf-8')).hexdigest()[0:length]
+                input.numpy().decode('utf-8').encode('utf-8')
+            ).hexdigest()[0:length]
 
-        current_key = convert_to_hex_dig(key, int(key_length / 4))
-        current_iv = convert_to_hex_dig(iv, int(iv_length / 4))
-        with tf.name_scope(self.name):
-            tf.summary.text('independent variable',
-                            data=current_iv)
-            tf.summary.text('key',
-                            data=current_key)
-        return (current_key, current_iv)
+        # TODO: figure out a way to do this without using py_function
+        # py_function is currently needed since we need to get the value from
+        # the tf.Tensor
+        current_key = tf.py_function(
+            convert_to_hex_dig,
+            [key_weights, int(key_length / 4)],
+            Tout=tf.string
+        )
+        current_iv = tf.py_function(
+            convert_to_hex_dig,
+            [iv_weights, int(iv_length / 4)],
+            Tout=tf.string
+        )
+        if not hasattr(self, 'key'):
+            self.key = tf.Variable('', trainable=False, name='key')
+        if not hasattr(self, 'iv'):
+            self.iv = tf.Variable('', trainable=False, name='iv')
+        self.key.assign(current_key)
+        self.iv.assign(current_iv)
+        # with self.name_scope:
+        #     tf.summary.text('key', data=current_key)
+        #     tf.summary.text('independent variable', data=current_iv)
+        return current_key, current_iv
 
 
 class ProbabilisticTPM(TPM):
@@ -212,7 +243,7 @@ class ProbabilisticTPM(TPM):
     def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
         super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
         self.type = 'probabilistic'
-        self.W = tf.Variable(
+        self.w = tf.Variable(
             tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
 
     def normalize_weights(self, i=-1, j=-1):
@@ -227,10 +258,10 @@ class ProbabilisticTPM(TPM):
             j (int): Index of the input perceptron distribution to normalize.
         """
         if (j < 0 and i < 0):
-            self.W.assign(tf.map_fn(lambda x: tf.math.reduce_mean(x), self.W))
+            self.w.assign(tf.map_fn(lambda x: tf.math.reduce_mean(x), self.w))
         else:
-            self.W[i, j].assign(
-                tf.map_fn(lambda x: tf.math.reduce_mean(x), self.W[i, j]))
+            self.w[i, j].assign(
+                tf.map_fn(lambda x: tf.math.reduce_mean(x), self.w[i, j]))
 
     def get_most_probable_weight(self):
         """
@@ -243,7 +274,7 @@ class ProbabilisticTPM(TPM):
         for i in tf.range(self.K):
             for j in tf.range(self.N):
                 mPW.assign(
-                    tf.map_fn(lambda x: tf.argmax(x) - self.L, self.W[i, j]))
+                    tf.map_fn(lambda x: tf.argmax(x) - self.L, self.w[i, j]))
         return mPW
 
     def update(self, update_rule="hebbian"):
@@ -265,7 +296,7 @@ class GeometricTPM(TPM):
         Negates the sigma value of the hidden perceptron with the lowest
         current state.
         """
-        wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.W), axis=1)
+        wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.w), axis=1)
         original = tf.math.sign(wx)
         h_i = tf.math.divide(tf.cast(wx, tf.float64),
                              tf.math.sqrt(tf.cast(self.N, tf.float64)))

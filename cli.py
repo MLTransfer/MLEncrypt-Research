@@ -114,7 +114,17 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
 
 
 @cli.command(name='hparams')
-@click.argument('method', type=click.Choice(['hyperopt', 'bayesopt']))
+@click.argument(
+    'method',
+    type=click.Choice(
+        [
+            'hyperopt',
+            'bayesopt',
+            'nevergrad'
+        ],
+        case_sensitive=False
+    )
+)
 def hparams(method):
     from glob import glob
 
@@ -123,10 +133,6 @@ def hparams(method):
     from ray import init as init_ray
     from ray import tune
     from ray.tune.schedulers import AsyncHyperBandScheduler
-    from ray.tune.suggest.hyperopt import HyperOptSearch
-    from ray.tune.suggest.bayesopt import BayesOptSearch
-    from hyperopt import hp as hyperopt
-    from hyperopt.pyll.base import scope
 
     # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
@@ -190,9 +196,10 @@ def hparams(method):
             avg_loss=avg_loss.numpy()
         )
 
-    init_ray()
-
     if method == 'hyperopt':
+        from hyperopt import hp as hyperopt
+        from hyperopt.pyll.base import scope
+        from ray.tune.suggest.hyperopt import HyperOptSearch
         space = {
             'update_rule': hyperopt.choice(
                 'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
@@ -210,6 +217,7 @@ def hparams(method):
             mode='min'
         )
     elif method == 'bayesopt':
+        from ray.tune.suggest.bayesopt import BayesOptSearch
         space = {
             'update_rule': (0, len(update_rules) - 1),
             'K': (4, 8),
@@ -226,7 +234,33 @@ def hparams(method):
                 "xi": 0.0
             }
         )
+    elif method == 'nevergrad':
+        from ray.tune.suggest.nevergrad import NevergradSearch
+        from nevergrad import optimizers
+        from nevergrad import p as ngp
+        space = {
+            'update_rule': (0, len(update_rules) - 1),
+            'K': (4, 8),
+            'N': (4, 8),
+            'L': (4, 8),
+        }
+        algo = NevergradSearch(
+            optimizers.TwoPointsDE(ngp.Instrumentation(
+                update_rule=ngp.Choice([
+                    'hebbian',
+                    'anti_hebbian',
+                    'random_walk'
+                ]),
+                K=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
+                N=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
+                L=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
+            )),
+            None,
+            metric="avg_loss",
+            mode="min"
+        )
 
+    init_ray()
     analysis = tune.run(
         trainable,
         search_alg=algo,

@@ -135,6 +135,21 @@ version = "1.3.0"
 
 [[package]]
 category = "main"
+description = "CMA-ES, Covariance Matrix Adaptation Evolution Strategy for non-linear numerical optimization in Python"
+name = "cma"
+optional = false
+python-versions = "*"
+version = "3.0.0"
+
+[package.dependencies]
+numpy = "*"
+
+[package.extras]
+plotting = ["matplotlib"]
+wrap-skopt = ["scikit-optimize"]
+
+[[package]]
+category = "main"
 description = "Cross-platform colored terminal text."
 name = "colorama"
 optional = false
@@ -453,6 +468,26 @@ pygraphviz = ["pygraphviz"]
 pytest = ["pytest"]
 pyyaml = ["pyyaml"]
 scipy = ["scipy"]
+
+[[package]]
+category = "main"
+description = "A Python toolbox for performing gradient-free optimization"
+name = "nevergrad"
+optional = false
+python-versions = ">=3.6"
+version = "0.4.0.post3"
+
+[package.dependencies]
+bayesian-optimization = ">=1.1.0"
+cma = ">=2.6.0"
+numpy = ">=1.15.0"
+pandas = ">=0.23.4"
+typing-extensions = ">=3.6.6"
+
+[package.extras]
+all = ["mypy (>=0.730)", "pytest (>=4.3.0)", "pytest-cov (>=2.6.1)", "wheel (>=0.33.6)", "setuptools (>=41.2.0)", "sphinx (>=2.1.0)", "sphinx-rtd-theme (>=0.4.3)", "recommonmark (>=0.5.0)", "twine (>=3.1.1)", "autodocsumm (>=0.1.11)", "requests (>=2.21.0)", "xlwt (>=1.3.0)", "xlrd (>=1.2.0)", "matplotlib (>=2.2.3)", "gym (>=0.12.1)", "torch (>=1.2.0)", "hiplot", "fcmaes (>=0.9.5.6)", "tqdm"]
+benchmark = ["requests (>=2.21.0)", "xlwt (>=1.3.0)", "xlrd (>=1.2.0)", "matplotlib (>=2.2.3)", "gym (>=0.12.1)", "torch (>=1.2.0)", "hiplot", "fcmaes (>=0.9.5.6)", "tqdm"]
+dev = ["mypy (>=0.730)", "pytest (>=4.3.0)", "pytest-cov (>=2.6.1)", "wheel (>=0.33.6)", "setuptools (>=41.2.0)", "sphinx (>=2.1.0)", "sphinx-rtd-theme (>=0.4.3)", "recommonmark (>=0.5.0)", "twine (>=3.1.1)", "autodocsumm (>=0.1.11)"]
 
 [[package]]
 category = "main"
@@ -865,7 +900,6 @@ dev = ["py-make (>=0.1.0)", "twine", "argopt", "pydoc-markdown"]
 [[package]]
 category = "main"
 description = "Backported and Experimental Type Hints for Python 3.5+"
-marker = "python_version < \"3.7\""
 name = "typing-extensions"
 optional = false
 python-versions = "*"
@@ -942,7 +976,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "29f2b72f1f49ca6d7fff9c544f6886b9833443237048b88a3ec7471fb14b8356"
+content-hash = "ae6706102ce2f53a80093fd9cc84e8a7314f12775a4a2bdea936e32a9aa7dcaf"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1003,6 +1037,10 @@ click = [
 cloudpickle = [
     {file = "cloudpickle-1.3.0-py2.py3-none-any.whl", hash = "sha256:8664761f810efc07dbb301459e413c99b68fcc6d8703912bd39d86618ac631e3"},
     {file = "cloudpickle-1.3.0.tar.gz", hash = "sha256:38af54d0e7705d87a287bdefe1df00f936aadb1f629dca383e825cca927fa753"},
+]
+cma = [
+    {file = "cma-3.0.0-py2.py3-none-any.whl", hash = "sha256:e09da62c15ff8dc413ed2fe0ae06a2a88f435490aa3dd836b07a1fd50600f27c"},
+    {file = "cma-3.0.0.tar.gz", hash = "sha256:67e7a6460469bdda4d402030179c5503899d860dae1a9622f87cd9dc996cb550"},
 ]
 colorama = [
     {file = "colorama-0.4.3-py2.py3-none-any.whl", hash = "sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"},
@@ -1195,6 +1233,10 @@ multidict = [
 networkx = [
     {file = "networkx-2.4-py3-none-any.whl", hash = "sha256:cdfbf698749a5014bf2ed9db4a07a5295df1d3a53bf80bf3cbd61edf9df05fa1"},
     {file = "networkx-2.4.tar.gz", hash = "sha256:f8f4ff0b6f96e4f9b16af6b84622597b5334bf9cae8cf9b2e42e7985d5c95c64"},
+]
+nevergrad = [
+    {file = "nevergrad-0.4.0.post3-py3-none-any.whl", hash = "sha256:3c5e2dabeacf54c2c115ada53a7746d2b747ce4fd334f953a10acbc67106fcb6"},
+    {file = "nevergrad-0.4.0.post3.tar.gz", hash = "sha256:bdc3d0e7430e7a8d338d516eeb17eb7923f06ba66e2277d599661a3c06d6fa5d"},
 ]
 numpy = [
     {file = "numpy-1.18.2-cp35-cp35m-macosx_10_9_x86_64.whl", hash = "sha256:a1baa1dc8ecd88fb2d2a651671a84b9938461e8a8eed13e2f0a812a94084d1fa"},

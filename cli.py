@@ -114,15 +114,17 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
 
 
 @cli.command(name='hparams')
-def hparams():
+@click.argument('method', type=click.Choice(['hyperopt', 'bayesopt']))
+def hparams(method):
     from glob import glob
 
     import tensorflow.summary
     from tensorflow import random as tfrandom, int64 as tfint64
-    # from ray import init as init_ray
+    from ray import init as init_ray
     from ray import tune
     from ray.tune.schedulers import AsyncHyperBandScheduler
     from ray.tune.suggest.hyperopt import HyperOptSearch
+    from ray.tune.suggest.bayesopt import BayesOptSearch
     from hyperopt import hp as hyperopt
     from hyperopt.pyll.base import scope
 
@@ -130,6 +132,8 @@ def hparams():
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
     logdir = f'logs/hparams/{datetime.now()}'
+
+    update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
 
     def get_session_num(logdir):
         current_runs = glob(join(logdir, "run-*"))
@@ -140,20 +144,21 @@ def hparams():
         else:  # there are no runs yet, start at 0
             return 0
 
-    def trainable(config):
+    def trainable(config, reporter):
         """
         Args:
             config (dict): Parameters provided from the search algorithm
                 or variant generation.
         """
+        if not isinstance(config['update_rule'], str):
+            update_rule = update_rules[int(config['update_rule'])]
+        else:
+            update_rule = config['update_rule']
+        K, N, L = int(config['K']), int(config['N']), int(config['L'])
         run_name = f"run-{get_session_num(logdir)}"
         run_logdir = join(logdir, run_name)
         # for each attack, the TPMs should start with the same weights
-        initial_weights_tensors = get_initial_weights(
-            config['K'],
-            config['N'],
-            config['L']
-        )
+        initial_weights_tensors = get_initial_weights(K, N, L)
         run_training_times = {}
         run_eve_scores = {}
         run_losses = {}
@@ -170,10 +175,7 @@ def hparams():
                     run_eve_scores[attack], \
                     run_losses[attack] = \
                     run(
-                        config['update_rule'],
-                        config['K'],
-                        config['N'],
-                        config['L'],
+                        update_rule, K, N, L,
                         attack,
                         initial_weights
                 )
@@ -182,39 +184,60 @@ def hparams():
         avg_eve_score = tensorflow.math.reduce_mean(
             list(run_eve_scores.values()))
         avg_loss = tensorflow.math.reduce_mean(list(run_losses.values()))
-        tune.track.log(
+        reporter(
             avg_training_time=avg_training_time.numpy(),
             avg_eve_score=avg_eve_score.numpy(),
             avg_loss=avg_loss.numpy()
         )
 
-    space = {
-        'update_rule': hyperopt.choice(
-            'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
-        ),
-        'K': scope.int(hyperopt.quniform('K', 4, 8, q=1)),
-        'N': scope.int(hyperopt.quniform('N', 4, 8, q=1)),
-        'L': scope.int(hyperopt.quniform('L', 4, 8, q=1))
-    }
-    # TODO: is atpe.suggest better?
-    # best = fmin(objective, space=space, algo=tpe.suggest, max_evals=100)
-    # print(best)
+    init_ray()
 
-    # init_ray(local_mode=True)
-    analysis = tune.run(
-        trainable,
-        search_alg=HyperOptSearch(
+    if method == 'hyperopt':
+        space = {
+            'update_rule': hyperopt.choice(
+                'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
+            ),
+            'K': scope.int(hyperopt.quniform('K', 4, 8, q=1)),
+            'N': scope.int(hyperopt.quniform('N', 4, 8, q=1)),
+            'L': scope.int(hyperopt.quniform('L', 4, 8, q=1)),
+            # 'K': scope.int(hyperopt.quniform('K', 4, 32, q=1)),
+            # 'N': scope.int(hyperopt.quniform('N', 4, 32, q=1)),
+            # 'L': scope.int(hyperopt.quniform('L', 4, 128, q=1))
+        }
+        algo = HyperOptSearch(
             space,
             metric='avg_loss',
             mode='min'
-        ),
+        )
+    elif method == 'bayesopt':
+        space = {
+            'update_rule': (0, len(update_rules) - 1),
+            'K': (4, 8),
+            'N': (4, 8),
+            'L': (4, 8),
+        }
+        algo = BayesOptSearch(
+            space,
+            metric="avg_loss",
+            mode="min",
+            utility_kwargs={
+                "kind": "ucb",
+                "kappa": 2.5,
+                "xi": 0.0
+            }
+        )
+
+    analysis = tune.run(
+        trainable,
+        search_alg=algo,
         scheduler=AsyncHyperBandScheduler(
             metric="avg_loss",
             mode="min"
         ),
+        # num_samples=100,
+        num_samples=10,
     )
-
-    print("Best config: ", analysis.get_best_config(metric="mean_accuracy"))
+    print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 
 
 if __name__ == '__main__':

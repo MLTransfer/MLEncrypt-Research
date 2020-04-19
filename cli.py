@@ -120,7 +120,8 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
         [
             'hyperopt',
             'bayesopt',
-            'nevergrad'
+            'nevergrad',
+            'skopt',
         ],
         case_sensitive=False
     )
@@ -256,6 +257,17 @@ def hparams(method):
                 L=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
             )),
             None,
+            metric="avg_loss",
+            mode="min"
+        )
+    elif method == 'skopt':
+        from skopt import Optimizer
+        from ray.tune.suggest.skopt import SkOptSearch
+
+        optimizer = Optimizer([update_rules, (4, 8), (4, 8), (4, 8)])
+        algo = SkOptSearch(
+            optimizer,
+            ["update_rule", "K", "N", "L"],
             metric="avg_loss",
             mode="min"
         )

@@ -563,6 +563,17 @@ version = "0.3.3"
 
 [[package]]
 category = "main"
+description = "PyYAML-based module to produce pretty and readable YAML-serialized data"
+name = "pyaml"
+optional = false
+python-versions = "*"
+version = "20.4.0"
+
+[package.dependencies]
+PyYAML = "*"
+
+[[package]]
+category = "main"
 description = "ASN.1 types and codecs"
 name = "pyasn1"
 optional = false
@@ -738,6 +749,24 @@ scipy = ">=0.17.0"
 
 [package.extras]
 alldeps = ["numpy (>=1.11.0)", "scipy (>=0.17.0)"]
+
+[[package]]
+category = "main"
+description = "Sequential model-based optimization toolbox."
+name = "scikit-optimize"
+optional = false
+python-versions = "*"
+version = "0.7.4"
+
+[package.dependencies]
+joblib = ">=0.11"
+numpy = ">=1.11.0"
+pyaml = ">=16.9"
+scikit-learn = ">=0.19.1"
+scipy = ">=0.18.0"
+
+[package.extras]
+plots = ["matplotlib (>=2.0.0)"]
 
 [[package]]
 category = "main"
@@ -976,7 +1005,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "ae6706102ce2f53a80093fd9cc84e8a7314f12775a4a2bdea936e32a9aa7dcaf"
+content-hash = "c01afe26b52e23c03c4502b272dcb5c382946b47230df7591e3b88558ff8b72c"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1317,6 +1346,10 @@ py-spy = [
     {file = "py_spy-0.3.3-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:e9d6946741c267fe82aef18d2fc1e095a90a83fb5f3d9fc89b0f20a39613a639"},
     {file = "py_spy-0.3.3-py2.py3-none-win_amd64.whl", hash = "sha256:a165d444cfbf24cdcdfe8cdaa858a179e1fae43adcb912e5efb3151362f67aa8"},
 ]
+pyaml = [
+    {file = "pyaml-20.4.0-py2.py3-none-any.whl", hash = "sha256:67081749a82b72c45e5f7f812ee3a14a03b3f5c25ff36ec3b290514f8c4c4b99"},
+    {file = "pyaml-20.4.0.tar.gz", hash = "sha256:29a5c2a68660a799103d6949167bd6c7953d031449d08802386372de1db6ad71"},
+]
 pyasn1 = [
     {file = "pyasn1-0.4.8-py2.4.egg", hash = "sha256:fec3e9d8e36808a28efb59b489e4528c10ad0f480e57dcc32b4de5c9d8c9fdf3"},
     {file = "pyasn1-0.4.8-py2.5.egg", hash = "sha256:0458773cfe65b153891ac249bcf1b5f8f320b7c2ce462151f8fa74de8934becf"},
@@ -1424,6 +1457,10 @@ scikit-learn = [
     {file = "scikit_learn-0.22.2.post1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:83fc104a799cb340054e485c25dfeee712b36f5638fb374eba45a9db490f16ff"},
     {file = "scikit_learn-0.22.2.post1-cp38-cp38-win32.whl", hash = "sha256:1bf45e62799b6938357cfce19f72e3751448c4b27010e4f98553da669b5bbd86"},
     {file = "scikit_learn-0.22.2.post1-cp38-cp38-win_amd64.whl", hash = "sha256:672ea38eb59b739a8907ec063642b486bcb5a2073dda5b72b7983eeaf1fd67c1"},
+]
+scikit-optimize = [
+    {file = "scikit-optimize-0.7.4.tar.gz", hash = "sha256:d193b9505d04dc0aade256f10b08124a5e5679fe8c3e90c09ff9e3a60d9f1752"},
+    {file = "scikit_optimize-0.7.4-py2.py3-none-any.whl", hash = "sha256:2ddcb5aa1f0c67396eee68d365de3d66928c40c609f4c12d079cc8151b9f5e76"},
 ]
 scipy = [
     {file = "scipy-1.4.1-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:c5cac0c0387272ee0e789e94a570ac51deb01c796b37fb2aad1fb13f85e2f97d"},

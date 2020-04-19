@@ -4,6 +4,7 @@ from tpm import tb_summary, tb_heatmap, tb_boxplot
 
 from os import environ
 from time import perf_counter
+from random import choice as random_from_array
 
 import tensorflow as tf
 from math import pi
@@ -196,7 +197,8 @@ def iterate(
         sync_score(Bob, Eve)
 
     tf.print(
-        "\rSynchronization = ", score, "% / ",
+        "\rUpdate rule = ", update_rule, " / "
+        "Synchronization = ", score, "% / ",
         nb_updates, " Updates (Alice) / ",
         nb_eve_updates, " Updates (Eve)",
         sep=''
@@ -273,13 +275,29 @@ def run(
     # instead of while, use for until L^4*K*N and break
     while score < 100. and not tf.reduce_all(tf.math.equal(Alice.w, Bob.w)):
         # Create random vector, X, with dimensions [K, N] and values {-1, 0, 1}
+        X = tf.Variable(
+            tf.random.uniform(
+                (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64),
+            trainable=False
+        )
+
+        update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
+
+        if update_rule == 'random':
+            # use tensorflow so that the same update rule is used for each
+            # iteration across attacks
+            # TODO: use tf.random.categorical?
+            current_ur_index = tf.random.uniform(
+                [],
+                maxval=len(update_rules),
+                dtype=tf.int32
+            )
+            current_update_rule = update_rules[current_ur_index.numpy().item()]
+        else:
+            current_update_rule = update_rule
         iterate(
-            tf.Variable(
-                tf.random.uniform(
-                    (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64),
-                trainable=False
-            ),
-            Alice, Bob, Eve, update_rule,
+            X,
+            Alice, Bob, Eve, current_update_rule,
             nb_updates, nb_eve_updates,
             score, score_eve,
             key_length, iv_length

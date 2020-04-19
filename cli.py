@@ -69,7 +69,15 @@ def cli():
 
 @cli.command(name='single')
 @click.option(
-    '-ur', '--update_rule', default='hebbian', show_default=True, type=str
+    '-ur', '--update_rule',
+    type=click.Choice([
+        'hebbian',
+        'anti_hebbian',
+        'random_walk',
+        'random'
+    ]),
+    default='hebbian',
+    show_default=True
 )
 @click.option(
     '--K', default=8, show_default=True, type=int
@@ -142,7 +150,7 @@ def hparams(method):
 
     logdir = f'logs/hparams/{datetime.now()}'
 
-    update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
+    update_rules = ['random', 'hebbian', 'anti_hebbian', 'random_walk']
 
     def get_session_num(logdir):
         current_runs = glob(join(logdir, "run-*"))
@@ -173,7 +181,7 @@ def hparams(method):
         run_losses = {}
         # for each attack, the TPMs should use the same inputs
         seed = tfrandom.uniform(
-            [1], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()[0]
+            [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
         for attack in ['none', 'geometric']:
             attack_logdir = join(run_logdir, attack)
             initial_weights = {tpm: weights_tensor_to_variable(
@@ -205,7 +213,7 @@ def hparams(method):
         from ray.tune.suggest.hyperopt import HyperOptSearch
         space = {
             'update_rule': hyperopt.choice(
-                'update_rule', ['hebbian', 'anti_hebbian', 'random_walk'],
+                'update_rule', update_rules,
             ),
             'K': scope.int(hyperopt.quniform('K', 4, 8, q=1)),
             'N': scope.int(hyperopt.quniform('N', 4, 8, q=1)),
@@ -242,7 +250,7 @@ def hparams(method):
         from nevergrad import optimizers
         from nevergrad import p as ngp
         space = {
-            'update_rule': (0, len(update_rules) - 1),
+            'update_rule': (0, len(update_rules)),
             'K': (4, 8),
             'N': (4, 8),
             'L': (4, 8),
@@ -276,8 +284,10 @@ def hparams(method):
     elif method == 'dragonfly':
         # TODO: doesn't work
         from ray.tune.suggest.dragonfly import DragonflySearch
-        from dragonfly.opt.gp_bandit import EuclideanGPBandit
         from dragonfly.exd.experiment_caller import EuclideanFunctionCaller
+        from dragonfly.opt.gp_bandit import EuclideanGPBandit
+        # from dragonfly.exd.experiment_caller import CPFunctionCaller
+        # from dragonfly.opt.gp_bandit import CPGPBandit
         from dragonfly import load_config
 
         domain_config = load_config({
@@ -329,7 +339,7 @@ def hparams(method):
             mode="min"
         ),
         # num_samples=100,
-        num_samples=10,
+        num_samples=1,
     )
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 

@@ -137,7 +137,7 @@ class TPM(tf.Module):
     def __call__(self, X):
         return self.get_output(X)
 
-    def update(self, tau2, update_rule='hebbian'):
+    def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.
 
         Args:
@@ -277,7 +277,7 @@ class ProbabilisticTPM(TPM):
                     tf.map_fn(lambda x: tf.argmax(x) - self.L, self.w[i, j]))
         return mPW
 
-    def update(self, update_rule="hebbian"):
+    def update(self, update_rule):
         """
         Args:
             update_rule (str): Must be "monte_carlo" or "hebbian".
@@ -286,6 +286,8 @@ class ProbabilisticTPM(TPM):
 
 
 class GeometricTPM(TPM):
+    # TODO: it might just be autograph but geometric isn't working,
+    # running an hparams with 1 trial returns the same results for both attacks
     def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
         super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
         self.type = 'geometric'
@@ -303,7 +305,7 @@ class GeometricTPM(TPM):
         min = tf.math.argmin(tf.math.abs(h_i))  # index of min
         self.sigma[min].assign(tf.math.negative(original[min]))
 
-    def update(self, tau2, update_rule='hebbian'):
+    def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.
 
         Args:
@@ -312,4 +314,4 @@ class GeometricTPM(TPM):
                 'anti_hebbian', or 'random_walk'.
         """
         self.update_sigma()
-        TPM.update(self, tau2, update_rule=update_rule)
+        TPM.update(self, tau2, update_rule)

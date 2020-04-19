@@ -43,7 +43,6 @@ def weights_tensor_to_variable(weights):
 @click.group()
 def cli():
     from tensorflow import config as tfconfig
-    # tfconfig.experimental_run_functions_eagerly(True)
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
         'constant_folding': True,
@@ -151,6 +150,10 @@ def hparams(method):
     logdir = f'logs/hparams/{datetime.now()}'
 
     update_rules = ['random', 'hebbian', 'anti_hebbian', 'random_walk']
+    K_bounds = {'min': 4, 'max': 8}
+    N_bounds = {'min': 4, 'max': 8}
+    L_bounds = {'min': 4, 'max': 8}
+    # TODO: don't use *_bounds.values() since .values doesn't preserve order
 
     def get_session_num(logdir):
         current_runs = glob(join(logdir, "run-*"))
@@ -215,12 +218,9 @@ def hparams(method):
             'update_rule': hyperopt.choice(
                 'update_rule', update_rules,
             ),
-            'K': scope.int(hyperopt.quniform('K', 4, 8, q=1)),
-            'N': scope.int(hyperopt.quniform('N', 4, 8, q=1)),
-            'L': scope.int(hyperopt.quniform('L', 4, 8, q=1)),
-            # 'K': scope.int(hyperopt.quniform('K', 4, 32, q=1)),
-            # 'N': scope.int(hyperopt.quniform('N', 4, 32, q=1)),
-            # 'L': scope.int(hyperopt.quniform('L', 4, 128, q=1))
+            'K': scope.int(hyperopt.quniform('K', *K_bounds.values(), q=1)),
+            'N': scope.int(hyperopt.quniform('N', *N_bounds.values(), q=1)),
+            'L': scope.int(hyperopt.quniform('L', *L_bounds.values(), q=1)),
         }
         algo = HyperOptSearch(
             space,
@@ -230,15 +230,16 @@ def hparams(method):
     elif method == 'bayesopt':
         from ray.tune.suggest.bayesopt import BayesOptSearch
         space = {
-            'update_rule': (0, len(update_rules) - 1),
-            'K': (4, 8),
-            'N': (4, 8),
-            'L': (4, 8),
+            'update_rule': (0, len(update_rules)),
+            'K': tuple(K_bounds.values()),
+            'N': tuple(N_bounds.values()),
+            'L': tuple(L_bounds.values()),
         }
         algo = BayesOptSearch(
             space,
             metric="avg_loss",
             mode="min",
+            # TODO: what is utility_kwargs for and why is it needed?
             utility_kwargs={
                 "kind": "ucb",
                 "kappa": 2.5,
@@ -249,22 +250,21 @@ def hparams(method):
         from ray.tune.suggest.nevergrad import NevergradSearch
         from nevergrad import optimizers
         from nevergrad import p as ngp
-        space = {
-            'update_rule': (0, len(update_rules)),
-            'K': (4, 8),
-            'N': (4, 8),
-            'L': (4, 8),
-        }
         algo = NevergradSearch(
             optimizers.TwoPointsDE(ngp.Instrumentation(
-                update_rule=ngp.Choice([
-                    'hebbian',
-                    'anti_hebbian',
-                    'random_walk'
-                ]),
-                K=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
-                N=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
-                L=ngp.Scalar(lower=4, upper=8).set_integer_casting(),
+                update_rule=ngp.Choice(update_rules),
+                K=ngp.Scalar(
+                    lower=K_bounds['min'],
+                    upper=K_bounds['max']
+                ).set_integer_casting(),
+                N=ngp.Scalar(
+                    lower=N_bounds['min'],
+                    upper=N_bounds['max']
+                ).set_integer_casting(),
+                L=ngp.Scalar(
+                    lower=L_bounds['min'],
+                    upper=L_bounds['max']
+                ).set_integer_casting(),
             )),
             None,
             metric="avg_loss",
@@ -274,7 +274,12 @@ def hparams(method):
         from skopt import Optimizer
         from ray.tune.suggest.skopt import SkOptSearch
 
-        optimizer = Optimizer([update_rules, (4, 8), (4, 8), (4, 8)])
+        optimizer = Optimizer([
+            update_rules,
+            tuple(K_bounds.values()),
+            tuple(N_bounds.values()),
+            tuple(L_bounds.values())
+        ])
         algo = SkOptSearch(
             optimizer,
             ["update_rule", "K", "N", "L"],
@@ -301,22 +306,22 @@ def hparams(method):
                 {
                     "name": "K",
                     "type": "int",
-                    "min": 4,
-                    "max": 8,
+                    "min": K_bounds['min'],
+                    "max": K_bounds['max'],
                     # "dim": 1
                 },
                 {
                     "name": "N",
                     "type": "int",
-                    "min": 4,
-                    "max": 8,
+                    "min": N_bounds['min'],
+                    "max": N_bounds['max'],
                     # "dim": 1
                 },
                 {
                     "name": "L",
                     "type": "int",
-                    "min": 4,
-                    "max": 8,
+                    "min": L_bounds['min'],
+                    "max": L_bounds['max'],
                     # "dim": 1
                 }
             ]

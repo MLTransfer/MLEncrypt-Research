@@ -52,7 +52,7 @@ def cli():
         'arithmetic_optimization': True,
         'dependency_optimization': True,
         'loop_optimization': True,
-        # 'function_optimization': True,
+        'function_optimization': True,
         # debug_stripper results in:
         # W tensorflow/core/common_runtime/process_function_library_runtime.cc:697] Ignoring multi-device function optimization failure: Not found: No attr named 'T' in NodeDef:
         # [[{{node PrintV2}}]]

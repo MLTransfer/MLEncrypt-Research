@@ -5,6 +5,8 @@ from os.path import join
 from os import environ
 from datetime import datetime
 
+from tensorflow import Variable as tfVariable
+
 
 def get_initial_weights(K, N, L):
     from tensorflow import (
@@ -35,7 +37,6 @@ def get_initial_weights(K, N, L):
 
 
 def weights_tensor_to_variable(weights):
-    from tensorflow import Variable as tfVariable
     return tfVariable(weights, trainable=True)
 
 
@@ -122,6 +123,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
             'bayesopt',
             'nevergrad',
             'skopt',
+            'dragonfly',
         ],
         case_sensitive=False
     )
@@ -268,6 +270,52 @@ def hparams(method):
         algo = SkOptSearch(
             optimizer,
             ["update_rule", "K", "N", "L"],
+            metric="avg_loss",
+            mode="min"
+        )
+    elif method == 'dragonfly':
+        # TODO: doesn't work
+        from ray.tune.suggest.dragonfly import DragonflySearch
+        from dragonfly.opt.gp_bandit import EuclideanGPBandit
+        from dragonfly.exd.experiment_caller import EuclideanFunctionCaller
+        from dragonfly import load_config
+
+        domain_config = load_config({
+            "domain": [
+                {
+                    "name": "update_rule",
+                    "type": "discrete",
+                    "dim": 1,
+                    "items": update_rules
+                },
+                {
+                    "name": "K",
+                    "type": "int",
+                    "min": 4,
+                    "max": 8,
+                    # "dim": 1
+                },
+                {
+                    "name": "N",
+                    "type": "int",
+                    "min": 4,
+                    "max": 8,
+                    # "dim": 1
+                },
+                {
+                    "name": "L",
+                    "type": "int",
+                    "min": 4,
+                    "max": 8,
+                    # "dim": 1
+                }
+            ]
+        })
+        func_caller = EuclideanFunctionCaller(
+            None, domain_config.domain.list_of_domains[0])
+        optimizer = EuclideanGPBandit(func_caller, ask_tell_mode=True)
+        algo = DragonflySearch(
+            optimizer,
             metric="avg_loss",
             mode="min"
         )

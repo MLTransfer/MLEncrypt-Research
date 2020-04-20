@@ -131,6 +131,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
             'nevergrad',
             'skopt',
             'dragonfly',
+            'bohb',
         ],
         case_sensitive=False
     )
@@ -175,13 +176,12 @@ def hparams(method):
         else:
             update_rule = config['update_rule']
         K, N, L = int(config['K']), int(config['N']), int(config['L'])
+
         run_name = f"run-{get_session_num(logdir)}"
         run_logdir = join(logdir, run_name)
         # for each attack, the TPMs should start with the same weights
         initial_weights_tensors = get_initial_weights(K, N, L)
-        run_training_times = {}
-        run_eve_scores = {}
-        run_losses = {}
+        run_training_times, run_eve_scores, run_losses = {}, {}, {}
         # for each attack, the TPMs should use the same inputs
         seed = tfrandom.uniform(
             [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
@@ -189,7 +189,11 @@ def hparams(method):
             attack_logdir = join(run_logdir, attack)
             initial_weights = {tpm: weights_tensor_to_variable(
                 weights) for tpm, weights in initial_weights_tensors.items()}
-            with tensorflow.summary.create_file_writer(attack_logdir).as_default():
+
+            # TODO: is the context manager necessary? Tune might handle this
+            attack_writer = tensorflow.summary.create_file_writer(
+                attack_logdir)
+            with attack_writer.as_default():
                 tfrandom.set_seed(seed)
                 run_training_times[attack], \
                     run_eve_scores[attack], \
@@ -214,6 +218,7 @@ def hparams(method):
         from hyperopt import hp as hyperopt
         from hyperopt.pyll.base import scope
         from ray.tune.suggest.hyperopt import HyperOptSearch
+
         space = {
             'update_rule': hyperopt.choice(
                 'update_rule', update_rules,
@@ -229,6 +234,7 @@ def hparams(method):
         )
     elif method == 'bayesopt':
         from ray.tune.suggest.bayesopt import BayesOptSearch
+
         space = {
             'update_rule': (0, len(update_rules)),
             'K': tuple(K_bounds.values()),
@@ -250,6 +256,7 @@ def hparams(method):
         from ray.tune.suggest.nevergrad import NevergradSearch
         from nevergrad import optimizers
         from nevergrad import p as ngp
+
         algo = NevergradSearch(
             optimizers.TwoPointsDE(ngp.Instrumentation(
                 update_rule=ngp.Choice(update_rules),
@@ -329,20 +336,36 @@ def hparams(method):
         func_caller = EuclideanFunctionCaller(
             None, domain_config.domain.list_of_domains[0])
         optimizer = EuclideanGPBandit(func_caller, ask_tell_mode=True)
-        algo = DragonflySearch(
-            optimizer,
-            metric="avg_loss",
-            mode="min"
-        )
+        algo = DragonflySearch(optimizer, metric="avg_loss", mode="min")
+    elif method == 'bohb':
+        from ConfigSpace import ConfigurationSpace
+        from ConfigSpace import hyperparameters as CSH
+        from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
+        from ray.tune.suggest.bohb import TuneBOHB
+
+        config_space = ConfigurationSpace()
+        config_space.add_hyperparameter(CSH.CategoricalHyperparameter(
+            "update_rule", choices=update_rules))
+        config_space.add_hyperparameter(CSH.UniformIntegerHyperparameter(
+            name='K', lower=K_bounds['min'], upper=K_bounds['max']))
+        config_space.add_hyperparameter(CSH.UniformIntegerHyperparameter(
+            name='N', lower=N_bounds['min'], upper=N_bounds['max']))
+        config_space.add_hyperparameter(CSH.UniformIntegerHyperparameter(
+            name='L', lower=L_bounds['min'], upper=L_bounds['max']))
+        algo = TuneBOHB(config_space, metric="avg_loss", mode="min")
 
     init_ray()
+    scheduler = HyperBandForBOHB(
+        metric="avg_loss",
+        mode="min"
+    ) if method == 'bohb' else AsyncHyperBandScheduler(
+        metric="avg_loss",
+        mode="min"
+    )
     analysis = tune.run(
         trainable,
         search_alg=algo,
-        scheduler=AsyncHyperBandScheduler(
-            metric="avg_loss",
-            mode="min"
-        ),
+        scheduler=scheduler,
         # num_samples=100,
         num_samples=1,
     )

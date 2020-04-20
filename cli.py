@@ -43,6 +43,9 @@ def weights_tensor_to_variable(weights):
 @click.group()
 def cli():
     from tensorflow import config as tfconfig
+
+    tfconfig.optimizer.set_jit(True)
+    tfconfig.experimental.set_synchronous_execution(True)
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
         'constant_folding': True,
@@ -98,6 +101,7 @@ def cli():
 )
 def single(update_rule, k, n, l, attack, key_length, iv_length):
     import tensorflow.summary
+    # import tensorflow.profiler
 
     environ["MLENCRYPT_HPARAMS"] = 'FALSE'
 
@@ -111,6 +115,8 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
     )
 
     tensorflow.summary.trace_on()
+    # TODO: don't profile for more than 10 steps at a time
+    # tensorflow.profiler.experimental.start(logdir)
     with tensorflow.summary.create_file_writer(logdir).as_default():
         run(
             update_rule, k, n, l,
@@ -119,6 +125,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
             key_length=key_length, iv_length=iv_length
         )
         tensorflow.summary.trace_export("graph")
+        # tensorflow.profiler.experimental.stop()
 
 
 @cli.command(name='hparams')
@@ -340,6 +347,8 @@ def hparams(method):
     elif method == 'bohb':
         from ConfigSpace import ConfigurationSpace
         from ConfigSpace import hyperparameters as CSH
+        # HyperBandForBOHB isn't used in this elif block but will be used for
+        # the scheduler:
         from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
         from ray.tune.suggest.bohb import TuneBOHB
 

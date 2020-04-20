@@ -126,6 +126,7 @@ def sync_score(TPM1, TPM2):
     return rho
 
 
+# @tf.function(experimental_compile=True)
 @tf.function
 def iterate(
     X,

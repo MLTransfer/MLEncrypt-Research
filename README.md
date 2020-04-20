@@ -6,6 +6,8 @@ Developed and tested in TensorFlow 2.0.0 and 2.1.0.
 
 Replace the `single` command with `hparams` if you want to run hyperparameter optimization.
 
+Note: XLA isn't actually used as of now, since decorating `iterate` with `@tf.function(experimental_compile=True)` returns many errors.
+
 ### CPU
 
 ```zsh

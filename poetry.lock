@@ -139,7 +139,7 @@ description = "CMA-ES, Covariance Matrix Adaptation Evolution Strategy for non-l
 name = "cma"
 optional = false
 python-versions = "*"
-version = "3.0.1"
+version = "3.0.2"
 
 [package.dependencies]
 numpy = "*"
@@ -1184,8 +1184,8 @@ cloudpickle = [
     {file = "cloudpickle-1.3.0.tar.gz", hash = "sha256:38af54d0e7705d87a287bdefe1df00f936aadb1f629dca383e825cca927fa753"},
 ]
 cma = [
-    {file = "cma-3.0.1-py2.py3-none-any.whl", hash = "sha256:c439bff45d72d95d0e0466d4cf8a3523e0271fd1a3db272cb82f3eb625345950"},
-    {file = "cma-3.0.1.tar.gz", hash = "sha256:17c55090a29afb3a349f471c3ba3997ab2b18d03f286d6f4214b5070bd0d96da"},
+    {file = "cma-3.0.2-py2.py3-none-any.whl", hash = "sha256:e886b2ec267eb60d49201afa3c236aea72af9e955b565af743f7c5dd1f3b14b3"},
+    {file = "cma-3.0.2.tar.gz", hash = "sha256:e51ae796ae552b73b77aa9d43ff3c224ecc6dec5bf346f66bdcd38ac716db01f"},
 ]
 colorama = [
     {file = "colorama-0.4.3-py2.py3-none-any.whl", hash = "sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"},

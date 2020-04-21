@@ -1,7 +1,5 @@
 # MLEncrypt-Research
 
-Developed and tested in TensorFlow 2.0.0 and 2.1.0.
-
 ## Usage
 
 Replace the `single` command with `hparams` if you want to run hyperparameter optimization.

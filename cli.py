@@ -36,15 +36,22 @@ def get_initial_weights(K, N, L):
     }
 
 
-def weights_tensor_to_variable(weights):
-    return tfVariable(weights, trainable=True)
+def weights_tensor_to_variable(weights, name):
+    return tfVariable(weights, trainable=True, name=name)
 
 
 @click.group()
 def cli():
     from tensorflow import config as tfconfig
 
-    tfconfig.optimizer.set_jit(True)
+    # TODO: use experimental_jit_scope?
+    try:
+        use_xla = "--tf_xla_auto_jit=2" in environ["TF_XLA_FLAGS"]
+    except KeyError:
+        # KeyError: 'TF_XLA_FLAGS'
+        use_xla = False
+
+    tfconfig.optimizer.set_jit(use_xla)
     tfconfig.experimental.set_synchronous_execution(True)
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
@@ -64,7 +71,8 @@ def cli():
         'scoped_allocator_optimization': True,
         'pin_to_host_optimization': True,
         'implementation_selector': True,
-        'auto_mixed_precision': False,  # hasn't been implemented in our code
+        # TODO: is mixed precision only for Keras?
+        'auto_mixed_precision': True,
         'disable_meta_optimizer': False
     })
 
@@ -106,7 +114,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
     environ["MLENCRYPT_HPARAMS"] = 'FALSE'
 
     initial_weights = {tpm: weights_tensor_to_variable(
-        weights) for tpm, weights in get_initial_weights(k, n, l).items()}
+        weights, tpm) for tpm, weights in get_initial_weights(k, n, l).items()}
 
     logdir = join(
         'logs/',
@@ -157,6 +165,14 @@ def hparams(method):
 
     logdir = f'logs/hparams/{datetime.now()}'
 
+    # These results show that K = 3 is the optimal choice for the cryptographic
+    # application of neural synchronization. K = 1 and K = 2 are too insecure
+    # in regard to the geometric attack. And for K > 3 the effort of A and B
+    # grows exponentially with increasing L, while the simple attack is quite
+    # successful in the limit K -> infinity. Consequently, one should only use
+    # Tree Parity Machines with three hidden units for the neural key-exchange
+    # protocol. (Ruttor, 2006)
+
     update_rules = ['random', 'hebbian', 'anti_hebbian', 'random_walk']
     K_bounds = {'min': 4, 'max': 8}
     N_bounds = {'min': 4, 'max': 8}
@@ -195,7 +211,7 @@ def hparams(method):
         for attack in ['none', 'geometric']:
             attack_logdir = join(run_logdir, attack)
             initial_weights = {tpm: weights_tensor_to_variable(
-                weights) for tpm, weights in initial_weights_tensors.items()}
+                weights, tpm) for tpm, weights in initial_weights_tensors.items()}
 
             # TODO: is the context manager necessary? Tune might handle this
             attack_writer = tensorflow.summary.create_file_writer(

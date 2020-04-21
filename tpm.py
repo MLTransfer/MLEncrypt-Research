@@ -179,7 +179,7 @@ class TPM(tf.Module):
                         # tb_heatmap('weights', self.w, ipaxis, hpaxis)
                         # tb_boxplot('weights', self.w, hpaxis)
                         # pass
-                    tf.py_function(log_images, [], [])
+                    tf.py_function(log_images, [], [], name='tb-images-weights')
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.

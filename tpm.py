@@ -89,6 +89,8 @@ class TPM(tf.Module):
             self.N = tf.constant(N)
             self.L = tf.constant(L)
             self.w = initial_weights
+            self.key = tf.constant("", name='key')
+            self.iv = tf.constant("", name='iv')
 
     def compute_sigma(self, X):
         """
@@ -178,8 +180,8 @@ class TPM(tf.Module):
                         #     1, self.K + 1), tf.range(1, self.N + 1)
                         # tb_heatmap('weights', self.w, ipaxis, hpaxis)
                         # tb_boxplot('weights', self.w, hpaxis)
-                        # pass
-                    tf.py_function(log_images, [], [], name='tb-images-weights')
+                    tf.py_function(log_images, [], [],
+                                   name='tb-images-weights')
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
@@ -219,15 +221,23 @@ class TPM(tf.Module):
             [iv_weights, int(iv_length / 4)],
             Tout=tf.string
         )
-        if not hasattr(self, 'key'):
-            self.key = tf.Variable('', trainable=False, name='key')
-        if not hasattr(self, 'iv'):
-            self.iv = tf.Variable('', trainable=False, name='iv')
+        # if not hasattr(self, 'key'):
+        #     self.key = tf.Variable('', trainable=False, name='key')
+        #     # try:
+        #     #     self.key = tf.Variable('', trainable=False, name='key')
+        #     # except ValueError:
+        #     #     self.key = tf.constant("", name='key')
+        # if not hasattr(self, 'iv'):
+        #     self.iv = tf.Variable('', trainable=False, name='iv')
+        #     # try:
+        #     #     self.iv = tf.Variable('', trainable=False, name='iv')
+        #     # except ValueError:
+        #     #     self.iv = tf.constant("", name='iv')
         self.key.assign(current_key)
         self.iv.assign(current_iv)
-        # with self.name_scope:
-        #     tf.summary.text('key', data=current_key)
-        #     tf.summary.text('independent variable', data=current_iv)
+        with self.name_scope:
+            tf.summary.text('key', data=current_key)
+            tf.summary.text('independent variable', data=current_iv)
         return current_key, current_iv
 
 

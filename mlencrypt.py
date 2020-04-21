@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from tpm import TPM
-from tpm import tb_summary  # , tb_heatmap, tb_boxplot
+from tpm import tb_summary, tb_heatmap, tb_boxplot
 
 from os import environ
 from time import perf_counter
@@ -90,6 +90,7 @@ def sync_score(TPM1, TPM2):
     # adapted from:
     # https://github.com/tensorflow/tensorflow/blob/f270180a6caa8693f2b2888ac7e6b8e69c4feaa8/tensorflow/python/keras/losses.py#L1073-L1093
     # TODO: am I using experimental_implements correctly?
+    # TODO: output is sometimes negative!
     @tf.function(experimental_implements="cosine_similarity")
     def cosine_similarity(y_true, y_pred):
         """Computes the cosine similarity between labels and predictions.
@@ -144,27 +145,24 @@ def iterate(
 ):
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
-    # TODO: make update_rule an attribute of the TPMs
-    # TODO: can Alice and Bob use different update rules?
-
     no_hparams = tf.math.equal(
         tf.constant(environ["MLENCRYPT_HPARAMS"], name='setting-hparams'),
         tf.constant('FALSE', name='false'),
         name='do-not-use-hparams'
     )
 
+    # TODO: use tf.cond and no_hparams
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
         tb_summary('inputs', X)
         # TODO: don't refer to variables outside of the method scope,
-        # add them as arguments (maybe tf.numpy_function) will help
+        # add them as arguments
 
         def log_inputs(inputs):
             # TODO: uncomment this:
-            # K, N = Alice.K, Alice.N
-            # hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+            K, N = Alice.K, Alice.N
+            hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
             # tb_heatmap('inputs', X, ipaxis, hpaxis)
             # tb_boxplot('inputs', X, hpaxis)
-            pass
         tf.py_function(log_inputs, [X], [], name='tb-images-inputs')
 
     # compute outputs of TPMs
@@ -221,10 +219,13 @@ def iterate(
     tf.cond(no_hparams, true_fn=log_updates_E,
             false_fn=lambda: None, name='tb-updates-E')
 
-    # if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
-    #     Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-    #     Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-    #     Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+    def compute_and_log_keys_and_ivs():
+        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
+        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
+        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+
+    tf.cond(no_hparams, true_fn=compute_and_log_keys_and_ivs,
+            false_fn=lambda: None, name='tb-keys-ivs')
 
     score.assign(tf.cast(100. * sync_score(Alice, Bob),
                          tf.float32), name='calc-sync-A-B')
@@ -242,7 +243,8 @@ def iterate(
 
     tf.print(
         "\rUpdate rule = ", update_rule, " / "
-        "Synchronization = ", score, "% / ",
+        "A-B Synchronization = ", score, "% / ",
+        "A-E Synchronization = ", score_eve, "% / ",
         nb_updates, " Updates (Alice) / ",
         nb_eve_updates, " Updates (Eve)",
         sep='',
@@ -270,7 +272,7 @@ def run(
     Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
     initial_weights_eve = initial_weights['Eve']
-    tpm_mod = import_module('tpm')
+    tpm_mod = import_module('tpm')  # TODO: don't reimport entire file?
     if attack == 'probabilistic':
         Eve_class_name = 'ProbabilisticTPM'
     elif attack == 'geometric':
@@ -296,12 +298,15 @@ def run(
         score_eve = 0.
 
     # https://www.tensorflow.org/tutorials/customization/performance#zero_iterations
-    Alice_key = tf.constant("", name='key-A')
-    Alice_iv = tf.constant("", name='IV-A')
-    Bob_key = tf.constant("", name='key-B')
-    Bob_iv = tf.constant("", name='IV-B')
-    Eve_key = tf.constant("", name='key-E')
-    Eve_iv = tf.constant("", name='IV-E')
+    with Alice.name_scope:
+        Alice.key = tf.Variable("", trainable=False, name='key')
+        Alice.iv = tf.Variable("", trainable=False, name='iv')
+    with Bob.name_scope:
+        Bob.key = tf.Variable("", trainable=False, name='key')
+        Bob.iv = tf.Variable("", trainable=False, name='iv')
+    with Eve.name_scope:
+        Eve.key = tf.Variable("", trainable=False, name='key')
+        Eve.iv = tf.Variable("", trainable=False, name='iv')
 
     try:
         nb_updates = tf.Variable(
@@ -332,14 +337,37 @@ def run(
         update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
 
         if update_rule == 'random':
-            # use tensorflow so that the same update rule is used for each
+            # use tf.random so that the same update rule is used for each
             # iteration across attacks
-            # TODO: use tf.random.categorical?
-            current_ur_index = tf.random.uniform(
-                [],
-                maxval=len(update_rules),
-                dtype=tf.int32
-            )
+
+            # current_ur_index = tf.random.uniform(
+            #     [],
+            #     maxval=len(update_rules),
+            #     dtype=tf.int32,
+            #     name='iteration-ur-index'
+            # )
+
+            # current_ur_index = tf.random.fixed_unigram_candidate_sampler(
+            #     tf.constant(  # true_classes
+            #         [range(len(update_rules))],
+            #         dtype=tf.int64
+            #     ),
+            #     len(update_rules),  # num_true
+            #     1,  # num_sampled
+            #     False,  # unique
+            #     len(update_rules),  # range_max
+            #     unigrams=[1. / len(update_rules)] * len(update_rules),
+            #     name='iteration-ur-index'
+            # )[0]
+
+            current_ur_index = tf.random.uniform_candidate_sampler(
+                [range(0, len(update_rules))],  # true_classes
+                len(update_rules),  # num_true
+                1,  # num_sampled,
+                False,  # unique
+                len(update_rules),  # range_max
+                name='iteration-ur-index'
+            )[0]
             current_update_rule = update_rules[current_ur_index.numpy().item()]
         else:
             current_update_rule = update_rule
@@ -378,40 +406,19 @@ def run(
         tf.summary.scalar('eve_score', score_eve)
         tf.summary.scalar('loss', loss)
 
-        # do this if hparams was enabled because the output keys and IVs
-        # haven't been defined yet
-        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
-    else:
-        # if hparams is not enabled, the keys and IVs have already been created
-        # Alice_key, Alice_iv = Alice.key, Alice.iv
-        # Bob_key, Bob_iv = Bob.key, Bob.iv
-        # Eve_key, Eve_iv = Eve.key, Eve.iv
-        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+        # do this if hparams is enabled because the keys and IVs haven't been
+        # calculated yet
+        Alice.makeKey(key_length, iv_length)
+        Bob.makeKey(key_length, iv_length)
+        Eve.makeKey(key_length, iv_length)
 
     tf.print(
         "\n\n"
         "Training time = ", training_time, " seconds.\n"
-        "Alice's key: ", Alice_key, " iv: ", Alice_iv, "\n",
-        "Bob's key: ", Bob_key, " iv: ", Bob_iv, "\n",
-        "Eve's key: ", Eve_key, " iv: ", Eve_iv,
+        "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
+        "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
+        "Eve's key: ", Eve.key, " iv: ", Eve.iv,
         sep='',
         name='log-run-final'
     )
-
-    keys_equal = tf.math.equal(Alice_key, Bob_key, name='final-keys-equal')
-    ivs_equal = tf.math.equal(Alice_iv, Bob_iv, name='final-IVs-equal')
-
-    def log_run_eve():
-        tf.print("Eve's machine is ", score_eve,
-                 "% synced with Alice's and Bob's and she did ",
-                 nb_eve_updates, " updates.", sep='', name='log-run-eve')
-    tf.cond(keys_equal and ivs_equal, true_fn=log_run_eve,
-            false_fn=lambda: None, name='log-run-E')
-
-    # TODO: are these returns value valid if the keys don't match?
-    # this is here because we have to return something in tf graph mode
     return training_time, score_eve, loss

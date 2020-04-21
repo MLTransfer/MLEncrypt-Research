@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-from tpm import TPM, ProbabilisticTPM, GeometricTPM
+from tpm import TPM
 from tpm import tb_summary  # , tb_heatmap, tb_boxplot
 
 from os import environ
 from time import perf_counter
+from importlib import import_module
 
 import tensorflow as tf
 from math import pi
@@ -115,8 +116,8 @@ def sync_score(TPM1, TPM2):
 
     tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
     # the generalization error, epsilon, is the probability that a repulsive
-    # step can only occur if two corresponding hidden units have different
-    # sigma (Ruttor, 2006)
+    # step occurs if two corresponding hidden units have different sigma
+    # (Ruttor, 2006).
     epsilon = tf.math.multiply(
         tf.constant(1. / pi, tf.float32, name='reciprocal-pi'),
         tf.cast(tf.math.acos(rho), tf.float32,
@@ -167,22 +168,22 @@ def iterate(
         tf.py_function(log_inputs, [X], [], name='tb-images-inputs')
 
     # compute outputs of TPMs
-    with tf.name_scope(Alice.name):
-        tauA = Alice.get_output(X)
+    with tf.name_scope(Alice.name) as scope:
+        tauA = tf.convert_to_tensor(Alice.get_output(X), name=scope)
 
         def log_tauA():
             tf.summary.scalar('tau', data=tauA)
         tf.cond(no_hparams, true_fn=log_tauA,
                 false_fn=lambda: None, name='tb-tau-A')
     with tf.name_scope(Bob.name):
-        tauB = Bob.get_output(X)
+        tauB = tf.convert_to_tensor(Bob.get_output(X), name=scope)
 
         def log_tauB():
             tf.summary.scalar('tau', data=tauB)
         tf.cond(no_hparams, true_fn=log_tauB,
                 false_fn=lambda: None, name='tb-tau-B')
     with tf.name_scope(Eve.name):
-        tauE = Eve.get_output(X)
+        tauE = tf.convert_to_tensor(Eve.get_output(X), name=scope)
 
         def log_tauE():
             tf.summary.scalar('tau', data=tauE)
@@ -268,18 +269,16 @@ def run(
 
     Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
-    # TODO: load class programatically
-    # https://stackoverflow.com/a/4821120/7127932
     initial_weights_eve = initial_weights['Eve']
-    Eve = ProbabilisticTPM(
-        'Eve', K, N, L, initial_weights_eve
-    ) if attack == 'probabilistic' \
-        else (GeometricTPM(
-            'Eve', K, N, L, initial_weights_eve
-        ) if attack == 'geometric'
-        else TPM(
-            'Eve', K, N, L, initial_weights_eve
-        ))
+    tpm_mod = import_module('tpm')
+    if attack == 'probabilistic':
+        Eve_class_name = 'ProbabilisticTPM'
+    elif attack == 'geometric':
+        Eve_class_name = 'GeometricTPM'
+    else:
+        Eve_class_name = 'TPM'
+    Eve_class = getattr(tpm_mod, Eve_class_name)
+    Eve = Eve_class('Eve', K, N, L, initial_weights_eve)
 
     try:
         # synchronization score of Alice and Bob

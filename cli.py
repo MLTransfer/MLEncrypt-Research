@@ -99,7 +99,14 @@ def cli():
     '--L', default=4, show_default=True, type=int
 )
 @click.option(
-    '--attack', default='none', show_default=True, type=str
+    '--attack',
+    type=click.Choice([
+        'none',
+        'geometric',
+        'probabilistic',
+    ]),
+    default='none',
+    show_default=True
 )
 @click.option(
     '-kl', '--key_length', default=256, show_default=True, type=int

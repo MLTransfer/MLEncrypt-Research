@@ -2,7 +2,7 @@
 name = "mlencrypt-research"
 version = "0.1.0"
 description = "Hyperparameter Optimization of Tree Parity Machines to Minimize the Effectiveness of Unconventional Attacks on Neural Cryptography​."
-authors = ["sumanthratna <sumanthratna@gmail.com>"]
+authors = ["Sumanth Ratna <sumanthratna@gmail.com>", "Anika Karpurapu"]
 
 [tool.poetry.dependencies]
 python = "^3.6"

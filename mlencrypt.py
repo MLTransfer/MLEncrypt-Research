@@ -200,6 +200,7 @@ def iterate(
     )
     should_update_E = tf.math.logical_or(
         tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')
+    tf.print('UPD', should_update_E)
 
     def update_E():
         Eve.update(tauA, update_rule)
@@ -397,7 +398,8 @@ def run(
 
     end_time = perf_counter()
     training_time = end_time - start_time
-    loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
+    # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
+    loss = (tf.math.log(training_time) + score_eve / 100.) / 2.
     key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
     if tf.math.equal(environ["MLENCRYPT_HPARAMS"], 'TRUE', name='use-hparams'):
         # creates scatterplot (in scalars) dashboard of metric vs steps

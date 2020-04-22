@@ -400,7 +400,7 @@ def hparams(method):
         search_alg=algo,
         scheduler=scheduler,
         # num_samples=100,
-        num_samples=1,
+        num_samples=10,
     )
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 

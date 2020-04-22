@@ -199,6 +199,9 @@ class TPM(tf.Module):
                         # tb_boxplot('weights', self.w, hpaxis)
                     # tf.py_function(log_images, [], [],
                     #                name='tb-images-weights')
+            return True
+        else:
+            return False
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.

@@ -179,9 +179,9 @@ def iterate(
     tauA = Alice.get_output(X)
     tauB = Bob.get_output(X)
     tauE = Eve.get_output(X)
-    Alice.update(tauB, update_rule)
-    Bob.update(tauA, update_rule)
-    nb_updates.assign_add(1, name='updates-A-B-increment')
+    updated = Alice.update(tauB, update_rule) and Bob.update(tauA, update_rule)
+    if updated:
+        nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
     # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
@@ -194,9 +194,9 @@ def iterate(
         tauA, tauE, name='iteration-tau-A-E-not-equal')
     update_E_geometric = tf.math.logical_and(
         tf.math.logical_and(tau_A_B_equal, tau_A_E_not_equal,
-                            name='tau-A-E-not-equal'),
+                            name='iteration-tau-E-not-equal'),
         tf.math.equal(Eve.type, 'geometric', name='is-E-geometric'),
-        name='update-E-geometric'
+        name='iteration-update-E-geometric'
     )
     should_update_E = tf.math.logical_or(
         tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')

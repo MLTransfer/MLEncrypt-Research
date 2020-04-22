@@ -90,20 +90,20 @@ def cli():
     show_default=True
 )
 @click.option(
-    '--K', default=8, show_default=True, type=int
+    '-K', '--K', default=8, show_default=True, type=int
 )
 @click.option(
-    '--N', default=12, show_default=True, type=int
+    '-N', '--N', default=12, show_default=True, type=int
 )
 @click.option(
-    '--L', default=4, show_default=True, type=int
+    '-L', '--L', default=4, show_default=True, type=int
 )
 @click.option(
-    '--attack',
+    '-a', '--attack',
     type=click.Choice([
         'none',
         'geometric',
-        'probabilistic',
+        # 'probabilistic',
     ]),
     default='none',
     show_default=True
@@ -168,6 +168,7 @@ def hparams(method):
     from ray.tune.schedulers import AsyncHyperBandScheduler
 
     # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
+    # TODO: use tf.summary.record_if?
     environ["MLENCRYPT_HPARAMS"] = 'TRUE'
 
     logdir = f'logs/hparams/{datetime.now()}'

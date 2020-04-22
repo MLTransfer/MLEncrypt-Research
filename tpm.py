@@ -8,7 +8,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-sns.set()
 
 
 def tb_summary(name, data):
@@ -28,6 +27,7 @@ def tb_summary(name, data):
 
 
 def tb_heatmap(name, data, xaxis, yaxis):
+    sns.set()  # TODO: don't call set every time
     with tf.name_scope(name):
         _, ax = plt.subplots()
         min, max = tf.math.reduce_min(data), tf.math.reduce_max(data)
@@ -52,6 +52,7 @@ def tb_heatmap(name, data, xaxis, yaxis):
 
 
 def tb_boxplot(name, data, xaxis):
+    sns.set()  # TODO: don't call set every time
     with tf.name_scope(name):
         _, ax = plt.subplots()
         df = pd.DataFrame(data=data.numpy(), index=xaxis).transpose()
@@ -85,9 +86,9 @@ class TPM(tf.Module):
             name='sigma'
         )
         with self.name_scope:
-            self.K = tf.constant(K)
-            self.N = tf.constant(N)
-            self.L = tf.constant(L)
+            self.K = tf.constant(K, name='K')
+            self.N = tf.constant(N, name='N')
+            self.L = tf.constant(L, name='L')
             self.w = initial_weights
             self.key = tf.constant("", name='key')
             self.iv = tf.constant("", name='iv')
@@ -100,16 +101,18 @@ class TPM(tf.Module):
             A tuple of the vector of the outputs of each hidden perceptron and
             the vector with all 0s replaced with -1s. For example:
 
-            ([-1, -1, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
+            ([-1, 0, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
 
             Each vector has dimension [K].
         """
         original = tf.math.sign(tf.math.reduce_sum(
             tf.math.multiply(X, tf.cast(self.w, tf.int64)), axis=1))
+        id = self.name[0]
         nonzero = tf.where(
-            tf.math.equal(original, 0),
-            tf.cast(-1, tf.int64),
-            original
+            tf.math.equal(original, 0, name=f'{id}-sigma-zero'),
+            tf.cast(-1, tf.int64, name='negative-1'),
+            original,
+            name='sigma-no-zeroes'
         )
         return original, nonzero
 
@@ -133,6 +136,8 @@ class TPM(tf.Module):
             self.X = X
             self.sigma.assign(sigma)
             self.tau = tau
+            if environ['MLENCRYPT_HPARAMS'] == 'FALSE':
+                tf.summary.scalar('tau', self.tau)
 
         return tau
 
@@ -170,18 +175,30 @@ class TPM(tf.Module):
                 with self.name_scope:
                     tb_summary('sigma', self.sigma)
                     tf.summary.histogram('weights', self.w)
+                    # for i in tf.range(self.K):
+                    #     hperceptron_tag = tf.strings.format(
+                    #         'hperceptron{}', i + 1).numpy()
+                    #     with tf.name_scope(hperceptron_tag):
+                    #         tb_summary('weights', self.w[i])
 
                     def log_images():
                         for i in range(self.K):
-                            with tf.name_scope(f'hperceptron{i+1}'):
+                            # for i in tf.range(self.K):
+                            # hperceptron_tag = tf.strings.format(
+                            #     'hperceptron{}', i + 1)
+                            # with tf.name_scope(hperceptron_tag):
+
+                            # hperceptron weights aren't logged, see
+                            # https://github.com/tensorflow/tensorflow/issues/38772
+                            with tf.name_scope(f'hperceptron{i + 1}'):
                                 tb_summary('weights', self.w[i])
 
                         # hpaxis, ipaxis = tf.range(
                         #     1, self.K + 1), tf.range(1, self.N + 1)
                         # tb_heatmap('weights', self.w, ipaxis, hpaxis)
                         # tb_boxplot('weights', self.w, hpaxis)
-                    tf.py_function(log_images, [], [],
-                                   name='tb-images-weights')
+                    # tf.py_function(log_images, [], [],
+                    #                name='tb-images-weights')
 
     def makeKey(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.

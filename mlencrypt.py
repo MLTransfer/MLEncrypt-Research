@@ -87,12 +87,13 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
+    tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
     # adapted from:
     # https://github.com/tensorflow/tensorflow/blob/f270180a6caa8693f2b2888ac7e6b8e69c4feaa8/tensorflow/python/keras/losses.py#L1073-L1093
     # TODO: am I using experimental_implements correctly?
     # TODO: output is sometimes negative!
     @tf.function(experimental_implements="cosine_similarity")
-    def cosine_similarity(y_true, y_pred):
+    def cosine_similarity(weights1, weights2):
         """Computes the cosine similarity between labels and predictions.
 
         Note that it is a negative quantity between 0 and 1, where 0 indicates
@@ -108,21 +109,29 @@ def sync_score(TPM1, TPM2):
         Returns:
             Cosine similarity tensor.
         """
-        y_true_norm = tf.math.l2_normalize(
-            tf.cast(tf.reshape(y_true, [-1]), tf.float64), axis=-1)
-        y_pred_norm = tf.math.l2_normalize(
-            tf.cast(tf.reshape(y_pred, [-1]), tf.float64), axis=-1)
-        return tf.math.reduce_sum(y_true_norm * y_pred_norm, axis=-1)
+        weights1_flattened = tf.reshape(
+            weights1, [-1], name=f'weights-{tpm1_id}-1d')
+        weights2_flattened = tf.reshape(
+            weights2, [-1], name=f'weights-{tpm2_id}-1d')
+        weights1_float = tf.cast(weights1_flattened, tf.float64,
+                                 name=f'weights-{tpm1_id}-1d-float')
+        weights2_float = tf.cast(weights2_flattened, tf.float64,
+                                 name=f'weights-{tpm2_id}-1d-float')
+        weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
+        weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
+        return tf.math.reduce_sum(weights1_norm * weights2_norm, axis=-1)
     rho = cosine_similarity(TPM1.w, TPM2.w)
 
-    tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
     # the generalization error, epsilon, is the probability that a repulsive
     # step occurs if two corresponding hidden units have different sigma
     # (Ruttor, 2006).
     epsilon = tf.math.multiply(
         tf.constant(1. / pi, tf.float32, name='reciprocal-pi'),
-        tf.cast(tf.math.acos(rho), tf.float32,
-                name=f'angle-{tpm1_id}-{tpm2_id}'),
+        tf.cast(
+            tf.math.acos(rho, name=f'angle-{tpm1_id}-{tpm2_id}'),
+            tf.float32,
+            name=f'angle-{tpm1_id}-{tpm2_id}'
+        ),
         name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
     )
 
@@ -157,6 +166,7 @@ def iterate(
         # TODO: don't refer to variables outside of the method scope,
         # add them as arguments
 
+        # @tf.autograph.experimental.do_not_convert
         def log_inputs(inputs):
             # TODO: uncomment this:
             K, N = Alice.K, Alice.N
@@ -166,46 +176,36 @@ def iterate(
         tf.py_function(log_inputs, [X], [], name='tb-images-inputs')
 
     # compute outputs of TPMs
-    with tf.name_scope(Alice.name) as scope:
-        tauA = tf.convert_to_tensor(Alice.get_output(X), name=scope)
-
-        def log_tauA():
-            tf.summary.scalar('tau', data=tauA)
-        tf.cond(no_hparams, true_fn=log_tauA,
-                false_fn=lambda: None, name='tb-tau-A')
-    with tf.name_scope(Bob.name):
-        tauB = tf.convert_to_tensor(Bob.get_output(X), name=scope)
-
-        def log_tauB():
-            tf.summary.scalar('tau', data=tauB)
-        tf.cond(no_hparams, true_fn=log_tauB,
-                false_fn=lambda: None, name='tb-tau-B')
-    with tf.name_scope(Eve.name):
-        tauE = tf.convert_to_tensor(Eve.get_output(X), name=scope)
-
-        def log_tauE():
-            tf.summary.scalar('tau', data=tauE)
-        tf.cond(no_hparams, true_fn=log_tauE,
-                false_fn=lambda: None, name='tb-tau-E')
-
+    tauA = Alice.get_output(X)
+    tauB = Bob.get_output(X)
+    tauE = Eve.get_output(X)
     Alice.update(tauB, update_rule)
     Bob.update(tauA, update_rule)
-    nb_updates.assign_add(1)
+    nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
     # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
     # due to the associative law of boolean multiplication
     tau_A_B_equal = tf.math.equal(tauA, tauB, name='iteration-tau-A-B-equal')
     tau_B_E_equal = tf.math.equal(tauB, tauE, name='iteration-tau-B-E-equal')
+    tau_A_B_E_equal = tf.math.logical_and(
+        tau_A_B_equal, tau_B_E_equal, name='iteration-tau-A-B-E-equal')
     tau_A_E_not_equal = tf.math.not_equal(
         tauA, tauE, name='iteration-tau-A-E-not-equal')
+    update_E_geometric = tf.math.logical_and(
+        tf.math.logical_and(tau_A_B_equal, tau_A_E_not_equal,
+                            name='tau-A-E-not-equal'),
+        tf.math.equal(Eve.type, 'geometric', name='is-E-geometric'),
+        name='update-E-geometric'
+    )
+    should_update_E = tf.math.logical_or(
+        tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')
 
     def update_E():
         Eve.update(tauA, update_rule)
-        nb_eve_updates.assign_add(1)
+        nb_eve_updates.assign_add(1, name='updates-E-increment')
     tf.cond(
-        ((tau_A_B_equal and tau_B_E_equal) or (
-            tau_A_B_equal and tau_A_E_not_equal and Eve.type == 'geometric')),
+        should_update_E,
         true_fn=update_E,
         false_fn=lambda: None,
         name='iteration-update-E'
@@ -271,7 +271,6 @@ def run(
 
     Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
-    initial_weights_eve = initial_weights['Eve']
     tpm_mod = import_module('tpm')  # TODO: don't reimport entire file?
     if attack == 'probabilistic':
         Eve_class_name = 'ProbabilisticTPM'
@@ -280,7 +279,7 @@ def run(
     else:
         Eve_class_name = 'TPM'
     Eve_class = getattr(tpm_mod, Eve_class_name)
-    Eve = Eve_class('Eve', K, N, L, initial_weights_eve)
+    Eve = Eve_class('Eve', K, N, L, initial_weights['Eve'])
 
     try:
         # synchronization score of Alice and Bob

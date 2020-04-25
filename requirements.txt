@@ -44,9 +44,9 @@ click==7.1.1 \
 cloudpickle==1.3.0 \
     --hash=sha256:8664761f810efc07dbb301459e413c99b68fcc6d8703912bd39d86618ac631e3 \
     --hash=sha256:38af54d0e7705d87a287bdefe1df00f936aadb1f629dca383e825cca927fa753
-cma==3.0.1 \
-    --hash=sha256:c439bff45d72d95d0e0466d4cf8a3523e0271fd1a3db272cb82f3eb625345950 \
-    --hash=sha256:17c55090a29afb3a349f471c3ba3997ab2b18d03f286d6f4214b5070bd0d96da
+cma==3.0.3 \
+    --hash=sha256:592d1a1973ee0d97b11958a00a33359f1dda9a7b56ca21b42b674665d0cca760 \
+    --hash=sha256:8f54d753fa2322d4fef1c40d899d65f0990a3b1b9b56ada0766c3cb9cb82bca8
 colorama==0.4.3 \
     --hash=sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff \
     --hash=sha256:e96da0d330793e2cb9485e9ddfd918d456036c7149416295932478192f4436a1
@@ -103,9 +103,9 @@ gast==0.2.2 \
 google==2.0.3 \
     --hash=sha256:c03517e6f9eec7a03c07b864f9a64384fd4bc1efce9034d42e3f90addc9fe4ee \
     --hash=sha256:ff7d997dbf33be666ed5deb8c5abf5d103c27ec199559b6d994923469e26bb48
-google-auth==1.14.0 \
-    --hash=sha256:9813eaae335c45e8a1b5d274610fa961ac8aa650568d1cfb005b2c07da6bde6c \
-    --hash=sha256:050f1713142fa57d4b34f4fd4a998210e330f6a29c84c6ce359b928cc11dc8ad
+google-auth==1.14.1 \
+    --hash=sha256:e63b2210e03c4ed829063b72c4af0c4b867c2788efb3210b6b9439b488bd3afd \
+    --hash=sha256:0c41a453b9a8e77975bfa436b8daedac00aed1c545d84410daff8272fff40fbb
 google-auth-oauthlib==0.4.1 \
     --hash=sha256:88d2cd115e3391eb85e1243ac6902e76e77c5fe438b7276b297fbe68015458dd \
     --hash=sha256:a92a0f6f41a0fb6138454fbc02674e64f89d82a244ea32f98471733c8ef0e0e1
@@ -177,7 +177,7 @@ h5py==2.10.0 \
     --hash=sha256:84412798925dc870ffd7107f045d7659e60f5d46d1c70c700375248bf6bf512d
 hpbandster==0.7.4 \
     --hash=sha256:49ffc32688155b509e62f3617b52ae15a96c9bff2c996a23df83f279106c5921
--e git+https://github.com/hyperopt/hyperopt.git@9e4b8a0cb8898c435c022aaf02b2e96b895a7239#egg=hyperopt
+-e git+https://github.com/hyperopt/hyperopt.git@1d438e5e96a7cc2a839dd2ca3aeaffc64e144976#egg=hyperopt
 idna==2.9 \
     --hash=sha256:a068a21ceac8a4d63dbfd964670474107f541babbd2250d61922f029858365fa \
     --hash=sha256:7588d1c14ae4c77d74036e8c22ff447b26d0fde8f007354fd48a7814db15b7cb

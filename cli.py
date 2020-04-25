@@ -71,8 +71,9 @@ def cli():
         'scoped_allocator_optimization': True,
         'pin_to_host_optimization': True,
         'implementation_selector': True,
-        # TODO: is mixed precision only for Keras?
-        'auto_mixed_precision': True,
+        # auto_mixed_precision is dangerous, see
+        # https://github.com/tensorflow/tensorflow/issues/38724
+        'auto_mixed_precision': False,
         'disable_meta_optimizer': False
     })
 

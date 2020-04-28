@@ -299,8 +299,8 @@ class ProbabilisticTPM(TPM):
             distributions.
     """
 
-    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
-        super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
+    def __init__(self, name, K, N, L, initial_weights):
+        super().__init__(name, K, N, L, initial_weights)
         self.type = 'probabilistic'
         self.w = tf.Variable(
             tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
@@ -347,8 +347,8 @@ class ProbabilisticTPM(TPM):
 class GeometricTPM(TPM):
     # TODO: it might just be autograph but geometric isn't working,
     # running an hparams with 1 trial returns the same results for both attacks
-    def __init__(self, name, K=8, N=12, L=4, initial_weights=None):
-        super().__init__(name, K=K, N=N, L=L, initial_weights=initial_weights)
+    def __init__(self, name, K, N, L, initial_weights):
+        super().__init__(name, K, N, L, initial_weights)
         self.type = 'geometric'
 
     def update_sigma(self):

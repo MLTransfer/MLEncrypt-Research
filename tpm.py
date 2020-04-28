@@ -196,7 +196,8 @@ class TPM(tf.Module):
             if is_hebbian or tf.math.equal(update_rule, 'hebbian'):
                 hebbian(self.w, self.X, self.sigma, self.tau, tau2, self.L)
             elif is_anti_hebbian or tf.math.equal(update_rule, 'anti_hebbian'):
-                anti_hebbian(self.w, self.X, self.sigma, self.tau, tau2, self.L)
+                anti_hebbian(self.w, self.X, self.sigma,
+                             self.tau, tau2, self.L)
             elif is_random_walk or tf.math.equal(update_rule, 'random_walk'):
                 random_walk(self.w, self.X, self.sigma, self.tau, tau2, self.L)
             else:

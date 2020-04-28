@@ -163,17 +163,10 @@ def iterate(
     # TODO: use tf.cond and no_hparams
     if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
         tb_summary('inputs', X)
-        # TODO: don't refer to variables outside of the method scope,
-        # add them as arguments
-
-        # @tf.autograph.experimental.do_not_convert
-        def log_inputs(inputs):
-            # TODO: uncomment this:
-            K, N = Alice.K, Alice.N
-            hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
-            # tb_heatmap('inputs', X, ipaxis, hpaxis)
-            # tb_boxplot('inputs', X, hpaxis)
-        tf.py_function(log_inputs, [X], [], name='tb-images-inputs')
+        K, N = Alice.K, Alice.N
+        hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+        tb_heatmap('inputs', X, ipaxis, hpaxis)
+        tb_boxplot('inputs', X, hpaxis)
 
     # compute outputs of TPMs
     tauA = Alice.get_output(X)
@@ -200,7 +193,6 @@ def iterate(
     )
     should_update_E = tf.math.logical_or(
         tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')
-    tf.print('UPD', should_update_E)
 
     def update_E():
         Eve.update(tauA, update_rule)

@@ -4,7 +4,7 @@
 
 Replace the `single` command with `hparams` if you want to run hyperparameter optimization.
 
-Note: XLA isn't actually used as of now, since decorating `iterate` with `@tf.function(experimental_compile=True)` returns many errors.
+Note: it may appear that enabling JIT compilation results in a slowdown. If you don't want to run with JIT, then don't pass the XLA flags to the run command.
 
 ### CPU
 

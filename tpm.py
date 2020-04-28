@@ -5,9 +5,13 @@ import hashlib
 from os import remove, environ
 
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
+from matplotlib import use as matplot_backend
+matplot_backend('agg')
+import matplotlib.pyplot as plt  # noqa
+import seaborn as sns  # noqa
+import pandas as pd  # noqa
+
+sns.set()
 
 
 def tb_summary(name, data):
@@ -26,46 +30,70 @@ def tb_summary(name, data):
         tf.summary.histogram('histogram', data)
 
 
+def create_heatmap(name, min, max, ticks, boundaries, data, xaxis, yaxis):
+    _, ax = plt.subplots()
+    data_range = int(max.numpy().item() - min.numpy().item() + 1)
+    cmap = plt.get_cmap(lut=data_range)
+    sns.heatmap(
+        pd.DataFrame(
+            data=data.numpy(),
+            index=yaxis,
+            columns=xaxis
+        ),
+        ax=ax,
+        cmap=cmap,
+        cbar_kws={
+            "ticks": ticks.numpy(),
+            "boundaries": boundaries.numpy()
+        }
+    )
+    ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
+    # without the splice, name_value becomes b'name':
+    name_value = f'{name}'[2:-1]
+    png_file = f'{name_value}-heatmap-{tf.summary.experimental.get_step()}.png'
+    plt.savefig(png_file)
+    plt.close()
+    pixels = tf.io.decode_png(tf.io.read_file(png_file))
+    remove(png_file)
+    return pixels
+
+
 def tb_heatmap(name, data, xaxis, yaxis):
-    sns.set()  # TODO: don't call set every time
     with tf.name_scope(name):
-        _, ax = plt.subplots()
-        min, max = tf.math.reduce_min(data), tf.math.reduce_max(data)
-        ticks = tf.range(min, max + 1).numpy()
-        boundaries = tf.range(tf.math.subtract(
-            tf.cast(min, tf.float64), .5), tf.math.add(
-                tf.cast(max, tf.float64), 1.5)).numpy()
-        cmap = plt.get_cmap(lut=max - min + 1)
-        sns.heatmap(pd.DataFrame(data=data.numpy(),
-                                 index=yaxis,
-                                 columns=xaxis),
-                    ax=ax,
-                    cmap=cmap,
-                    cbar_kws={"ticks": ticks, "boundaries": boundaries})
-        ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
-        png_file = f'{name}-heatmap-{tf.summary.experimental.get_step()}.png'
-        plt.savefig(png_file)
-        plt.close()
-        pixels = tf.io.decode_png(tf.io.read_file(png_file))
-        remove(png_file)
+        data_float = tf.cast(data, tf.float64)
+        min = tf.math.reduce_min(data_float)
+        max = tf.math.reduce_max(data_float)
+        ticks = tf.range(min, max + 1)
+        boundaries = tf.range(min - .5, max + 1.5)
+        inp = [name, min, max, ticks, boundaries, data, xaxis, yaxis]
+        # TODO: use tf.numpy_function, only problem is that pixels must be a
+        # numpy array
+        pixels = tf.py_function(create_heatmap, inp, tf.uint8)
         tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
 
 
+def create_boxplot(name, data, xaxis):
+    _, ax = plt.subplots()
+    df = pd.DataFrame(data=data.numpy(), index=xaxis).transpose()
+    sns.boxplot(data=df)
+    sns.swarmplot(data=df, size=2, color=".3", linewidth=0)
+    ax.xaxis.grid(True)
+    ax.set(xlabel="hidden perceptron", ylabel=name)
+    sns.despine(trim=True, left=True)
+    # without the splice, name_value becomes b'name':
+    name_value = f'{name}'[2:-1]
+    png_file = f'{name_value}-boxplot-{tf.summary.experimental.get_step()}.png'
+    plt.savefig(png_file)
+    plt.close()
+    pixels = tf.io.decode_png(tf.io.read_file(png_file))
+    remove(png_file)
+    return pixels
+
+
 def tb_boxplot(name, data, xaxis):
-    sns.set()  # TODO: don't call set every time
     with tf.name_scope(name):
-        _, ax = plt.subplots()
-        df = pd.DataFrame(data=data.numpy(), index=xaxis).transpose()
-        sns.boxplot(data=df)
-        sns.swarmplot(data=df, size=2, color=".3", linewidth=0)
-        ax.xaxis.grid(True)
-        ax.set(xlabel="hidden perceptron", ylabel=name)
-        sns.despine(trim=True, left=True)
-        png_file = f'{name}-boxplot-{tf.summary.experimental.get_step()}.png'
-        plt.savefig(png_file)
-        plt.close()
-        pixels = tf.io.decode_png(tf.io.read_file(png_file))
-        remove(png_file)
+        inp = [name, data, xaxis]
+        pixels = tf.py_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
 
 
@@ -175,11 +203,6 @@ class TPM(tf.Module):
                 with self.name_scope:
                     tb_summary('sigma', self.sigma)
                     tf.summary.histogram('weights', self.w)
-                    # for i in tf.range(self.K):
-                    #     hperceptron_tag = tf.strings.format(
-                    #         'hperceptron{}', i + 1).numpy()
-                    #     with tf.name_scope(hperceptron_tag):
-                    #         tb_summary('weights', self.w[i])
 
                     def log_images():
                         for i in range(self.K):
@@ -193,12 +216,13 @@ class TPM(tf.Module):
                             with tf.name_scope(f'hperceptron{i + 1}'):
                                 tb_summary('weights', self.w[i])
 
-                        # hpaxis, ipaxis = tf.range(
-                        #     1, self.K + 1), tf.range(1, self.N + 1)
-                        # tb_heatmap('weights', self.w, ipaxis, hpaxis)
-                        # tb_boxplot('weights', self.w, hpaxis)
-                    # tf.py_function(log_images, [], [],
-                    #                name='tb-images-weights')
+                        hpaxis = tf.range(1, self.K + 1)
+                        ipaxis = tf.range(1, self.N + 1)
+                        # tf.summary.experimental.get_step() is None here:
+                        tb_heatmap('weights', self.w, ipaxis, hpaxis)
+                        tb_boxplot('weights', self.w, hpaxis)
+                    tf.py_function(log_images, [], [],
+                                   name='tb-images-weights')
             return True
         else:
             return False

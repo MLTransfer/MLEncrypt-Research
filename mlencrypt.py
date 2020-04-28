@@ -135,7 +135,7 @@ def sync_score(TPM1, TPM2):
         name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
     )
 
-    if environ["MLENCRYPT_TB"] == 'FALSE':
+    if environ["MLENCRYPT_TB"] == 'TRUE':
         with tf.name_scope(f'{TPM1.name}-{TPM2.name}'):
             tf.summary.scalar('sync', data=rho)
             tf.summary.scalar('generalization-error', data=epsilon)
@@ -186,14 +186,14 @@ def iterate(
         update_rule_B = update_rule
         update_rule_E = update_rule
 
-    no_hparams = tf.math.equal(
+    log_tb = tf.math.equal(
         tf.constant(environ["MLENCRYPT_TB"], name='setting-hparams'),
-        tf.constant('FALSE', name='false'),
+        tf.constant('TRUE', name='true'),
         name='do-not-use-hparams'
     )
 
-    # TODO: use tf.cond and no_hparams
-    if environ["MLENCRYPT_TB"] == 'FALSE':
+    # TODO: use tf.cond
+    if environ["MLENCRYPT_TB"] == 'TRUE':
         tb_summary('inputs', X)
         K, N = Alice.K, Alice.N
         hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
@@ -242,7 +242,7 @@ def iterate(
 
     def log_updates_E():
         tf.summary.scalar('updates-E', data=nb_eve_updates)
-    tf.cond(no_hparams, true_fn=log_updates_E,
+    tf.cond(log_tb, true_fn=log_updates_E,
             false_fn=lambda: None, name='tb-updates-E')
 
     def compute_and_log_keys_and_ivs():
@@ -250,7 +250,7 @@ def iterate(
         Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
         Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
 
-    tf.cond(no_hparams, true_fn=compute_and_log_keys_and_ivs,
+    tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
 
     score.assign(tf.cast(100. * sync_score(Alice, Bob),
@@ -261,9 +261,9 @@ def iterate(
     # def calc_and_log_sync_B_E():
     #     sync_score(Bob, Eve)
     # # log adversary score for Bob's weights
-    # tf.cond(no_hparams, true_fn=calc_and_log_sync_B_E,
+    # tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
     #         false_fn=lambda: None, name='calc-sync-B-E')
-    if environ["MLENCRYPT_TB"] == 'FALSE':
+    if environ["MLENCRYPT_TB"] == 'TRUE':
         # log adversary score for Bob's weights
         sync_score(Bob, Eve)
 
@@ -348,7 +348,6 @@ def run(
         # on non-first call.
         pass
     tf.summary.experimental.set_step(0)
-    start_time = perf_counter()
 
     def train_step():
         # Create random vector, X, with dimensions [K, N] and values {-1, 0, 1}
@@ -391,6 +390,7 @@ def run(
     #     swap_memory=True,
     #     name='train-step'
     # )
+    start_time = perf_counter()
     while score < 100. and not weights_A_B_equal:
         train_step()
 
@@ -399,7 +399,7 @@ def run(
     # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
     loss = (tf.math.log(training_time) + score_eve / 100.) / 2.
     key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
-    if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='use-hparams'):
+    if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
         # creates scatterplot (in scalars) dashboard of metric vs steps
         tf.summary.scalar('training_time', training_time)
         tf.summary.scalar('eve_score', score_eve)
@@ -410,14 +410,20 @@ def run(
         Alice.makeKey(key_length, iv_length)
         Bob.makeKey(key_length, iv_length)
         Eve.makeKey(key_length, iv_length)
-
-    tf.print(
-        "\n\n"
-        "Training time = ", training_time, " seconds.\n"
-        "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
-        "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
-        "Eve's key: ", Eve.key, " iv: ", Eve.iv,
-        sep='',
-        name='log-run-final'
-    )
+        tf.print(
+            "\n\n",
+            "Training time = ", training_time, " seconds.\n",
+            "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
+            "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
+            "Eve's key: ", Eve.key, " iv: ", Eve.iv,
+            sep='',
+            name='log-run-final'
+        )
+    else:
+        tf.print(
+            "\n\n",
+            "Training time = ", training_time, " seconds.\n",
+            sep='',
+            name='log-run-final'
+        )
     return training_time, score_eve, loss

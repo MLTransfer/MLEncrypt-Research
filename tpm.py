@@ -164,7 +164,7 @@ class TPM(tf.Module):
             self.X = X
             self.sigma.assign(sigma)
             self.tau = tau
-            if environ['MLENCRYPT_TB'] == 'FALSE':
+            if environ['MLENCRYPT_TB'] == 'TRUE':
                 tf.summary.scalar('tau', self.tau)
 
         return tau
@@ -207,7 +207,7 @@ class TPM(tf.Module):
                     + "'anti_hebbian' and "
                     + "'random_walk'."
                 )
-            if environ["MLENCRYPT_TB"] == 'FALSE':
+            if environ["MLENCRYPT_TB"] == 'TRUE':
                 # TODO: don't refer to variables outside of the method scope,
                 # add them as arguments (maybe tf.numpy_function) will help
                 with self.name_scope:

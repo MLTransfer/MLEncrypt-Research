@@ -116,11 +116,14 @@ def cli():
 @click.option(
     '-ivl', '--iv_length', default=128, show_default=True, type=int
 )
-def single(update_rule, k, n, l, attack, key_length, iv_length):
+@click.option(
+    '-tb', '--tensorboard', is_flag=True
+)
+def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     import tensorflow.summary
     # import tensorflow.profiler
 
-    environ["MLENCRYPT_TB"] = 'FALSE'
+    environ["MLENCRYPT_TB"] = str(tensorboard).upper()
 
     initial_weights = {tpm: weights_tensor_to_variable(
         weights, tpm) for tpm, weights in get_initial_weights(k, n, l).items()}
@@ -160,7 +163,10 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
         case_sensitive=False
     )
 )
-def hparams(method):
+@click.option(
+    '-tb', '--tensorboard', is_flag=True
+)
+def hparams(method, tensorboard):
     from glob import glob
 
     import tensorflow.summary
@@ -171,7 +177,7 @@ def hparams(method):
 
     # less summaries are logged if MLENCRYPT_TB is TRUE (for efficiency)
     # TODO: use tf.summary.record_if?
-    environ["MLENCRYPT_TB"] = 'TRUE'
+    environ["MLENCRYPT_TB"] = str(tensorboard).upper()
 
     logdir = f'logs/hparams/{datetime.now()}'
 

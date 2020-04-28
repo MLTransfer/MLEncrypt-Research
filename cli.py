@@ -82,10 +82,11 @@ def cli():
 @click.option(
     '-ur', '--update_rule',
     type=click.Choice([
+        'random-same',
+        'random-different',
         'hebbian',
         'anti_hebbian',
         'random_walk',
-        'random'
     ]),
     default='hebbian',
     show_default=True
@@ -182,7 +183,10 @@ def hparams(method):
     # Tree Parity Machines with three hidden units for the neural key-exchange
     # protocol. (Ruttor, 2006)
 
-    update_rules = ['random', 'hebbian', 'anti_hebbian', 'random_walk']
+    update_rules = [
+        'random-same', 'random-different',
+        'hebbian', 'anti_hebbian', 'random_walk'
+    ]
     K_bounds = {'min': 4, 'max': 8}
     N_bounds = {'min': 4, 'max': 8}
     L_bounds = {'min': 4, 'max': 8}
@@ -401,7 +405,7 @@ def hparams(method):
         search_alg=algo,
         scheduler=scheduler,
         # num_samples=100,
-        num_samples=10,
+        num_samples=1,
     )
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 

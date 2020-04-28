@@ -143,6 +143,18 @@ def sync_score(TPM1, TPM2):
     return rho
 
 
+def select_random_from_list(input_list, op_name=None):
+    # see this gist for how to select a random value from a list:
+    # https://gist.github.com/sumanthratna/b9b57134bb76c9fc62b73553728ca896
+    index = tf.random.uniform(
+        [],
+        maxval=len(input_list),
+        dtype=tf.int32,
+        name=op_name
+    )
+    return tf.gather(input_list, index)
+
+
 # @tf.function(experimental_compile=True)
 @tf.function
 def iterate(
@@ -153,6 +165,26 @@ def iterate(
     key_length, iv_length
 ):
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+
+    if update_rule == 'random-different':
+        update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
+        update_rule_A = select_random_from_list(
+            update_rules,
+            op_name='iteration-ur-A'
+        )
+        update_rule_B = select_random_from_list(
+            update_rules,
+            op_name='iteration-ur-B'
+        )
+        # update_rule_E = select_random_from_list(
+        #     update_rules,
+        #     op_name='iteration-ur-E'
+        # )
+        update_rule_E = update_rule_A
+    else:
+        update_rule_A = update_rule
+        update_rule_B = update_rule
+        update_rule_E = update_rule
 
     no_hparams = tf.math.equal(
         tf.constant(environ["MLENCRYPT_HPARAMS"], name='setting-hparams'),
@@ -172,7 +204,8 @@ def iterate(
     tauA = Alice.get_output(X)
     tauB = Bob.get_output(X)
     tauE = Eve.get_output(X)
-    updated = Alice.update(tauB, update_rule) and Bob.update(tauA, update_rule)
+    updated = Alice.update(tauB, update_rule_A) and Bob.update(
+        tauA, update_rule_B)
     if updated:
         nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
@@ -195,7 +228,7 @@ def iterate(
         tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')
 
     def update_E():
-        Eve.update(tauA, update_rule)
+        Eve.update(tauA, update_rule_E)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
     tf.cond(
         should_update_E,
@@ -328,39 +361,12 @@ def run(
 
         update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
 
-        if update_rule == 'random':
+        if update_rule == 'random-same':
             # use tf.random so that the same update rule is used for each
             # iteration across attacks
 
-            # current_ur_index = tf.random.uniform(
-            #     [],
-            #     maxval=len(update_rules),
-            #     dtype=tf.int32,
-            #     name='iteration-ur-index'
-            # )
-
-            # current_ur_index = tf.random.fixed_unigram_candidate_sampler(
-            #     tf.constant(  # true_classes
-            #         [range(len(update_rules))],
-            #         dtype=tf.int64
-            #     ),
-            #     len(update_rules),  # num_true
-            #     1,  # num_sampled
-            #     False,  # unique
-            #     len(update_rules),  # range_max
-            #     unigrams=[1. / len(update_rules)] * len(update_rules),
-            #     name='iteration-ur-index'
-            # )[0]
-
-            current_ur_index = tf.random.uniform_candidate_sampler(
-                [range(0, len(update_rules))],  # true_classes
-                len(update_rules),  # num_true
-                1,  # num_sampled,
-                False,  # unique
-                len(update_rules),  # range_max
-                name='iteration-ur-index'
-            )[0]
-            current_update_rule = update_rules[current_ur_index.numpy().item()]
+            current_update_rule = select_random_from_list(
+                update_rules, 'iteration-ur-index')
         else:
             current_update_rule = update_rule
         iterate(

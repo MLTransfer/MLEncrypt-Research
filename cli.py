@@ -120,7 +120,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length):
     import tensorflow.summary
     # import tensorflow.profiler
 
-    environ["MLENCRYPT_HPARAMS"] = 'FALSE'
+    environ["MLENCRYPT_TB"] = 'FALSE'
 
     initial_weights = {tpm: weights_tensor_to_variable(
         weights, tpm) for tpm, weights in get_initial_weights(k, n, l).items()}
@@ -169,9 +169,9 @@ def hparams(method):
     from ray import tune
     from ray.tune.schedulers import AsyncHyperBandScheduler
 
-    # less summaries are logged if MLENCRYPT_HPARAMS is TRUE (for efficiency)
+    # less summaries are logged if MLENCRYPT_TB is TRUE (for efficiency)
     # TODO: use tf.summary.record_if?
-    environ["MLENCRYPT_HPARAMS"] = 'TRUE'
+    environ["MLENCRYPT_TB"] = 'TRUE'
 
     logdir = f'logs/hparams/{datetime.now()}'
 

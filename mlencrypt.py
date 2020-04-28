@@ -135,7 +135,7 @@ def sync_score(TPM1, TPM2):
         name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
     )
 
-    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+    if environ["MLENCRYPT_TB"] == 'FALSE':
         with tf.name_scope(f'{TPM1.name}-{TPM2.name}'):
             tf.summary.scalar('sync', data=rho)
             tf.summary.scalar('generalization-error', data=epsilon)
@@ -187,13 +187,13 @@ def iterate(
         update_rule_E = update_rule
 
     no_hparams = tf.math.equal(
-        tf.constant(environ["MLENCRYPT_HPARAMS"], name='setting-hparams'),
+        tf.constant(environ["MLENCRYPT_TB"], name='setting-hparams'),
         tf.constant('FALSE', name='false'),
         name='do-not-use-hparams'
     )
 
     # TODO: use tf.cond and no_hparams
-    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+    if environ["MLENCRYPT_TB"] == 'FALSE':
         tb_summary('inputs', X)
         K, N = Alice.K, Alice.N
         hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
@@ -263,7 +263,7 @@ def iterate(
     # # log adversary score for Bob's weights
     # tf.cond(no_hparams, true_fn=calc_and_log_sync_B_E,
     #         false_fn=lambda: None, name='calc-sync-B-E')
-    if environ["MLENCRYPT_HPARAMS"] == 'FALSE':
+    if environ["MLENCRYPT_TB"] == 'FALSE':
         # log adversary score for Bob's weights
         sync_score(Bob, Eve)
 
@@ -399,7 +399,7 @@ def run(
     # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
     loss = (tf.math.log(training_time) + score_eve / 100.) / 2.
     key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
-    if tf.math.equal(environ["MLENCRYPT_HPARAMS"], 'TRUE', name='use-hparams'):
+    if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='use-hparams'):
         # creates scatterplot (in scalars) dashboard of metric vs steps
         tf.summary.scalar('training_time', training_time)
         tf.summary.scalar('eve_score', score_eve)

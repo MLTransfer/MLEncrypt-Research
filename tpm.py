@@ -30,7 +30,7 @@ def tb_summary(name, data):
         tf.summary.histogram('histogram', data)
 
 
-def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
+def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis, step):
     _, ax = plt.subplots()
     cmap = plt.get_cmap(lut=int(data_range.numpy().item()))
     sns.heatmap(
@@ -49,7 +49,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
     # without the splice, name_value becomes b'name':
     name_value = f'{name}'[2:-1]
-    png_file = f'{name_value}-heatmap-{tf.summary.experimental.get_step()}.png'
+    png_file = f'{name_value}-heatmap-{step.numpy()}.png'
     plt.savefig(png_file)
     plt.close()
     pixels = tf.io.decode_png(tf.io.read_file(png_file))
@@ -65,14 +65,15 @@ def tb_heatmap(name, data, xaxis, yaxis):
         data_range = max - min + 1
         ticks = tf.range(min, max + 1)
         boundaries = tf.range(min - .5, max + 1.5)
-        inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis]
+        step = tf.summary.experimental.get_step()
+        inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis, step]
         # TODO: use tf.numpy_function, only problem is that pixels must be a
         # numpy array
         pixels = tf.py_function(create_heatmap, inp, tf.uint8)
         tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
 
 
-def create_boxplot(name, data, xaxis):
+def create_boxplot(name, data, xaxis, step):
     _, ax = plt.subplots()
     df = pd.DataFrame(data=data.numpy(), index=xaxis).transpose()
     sns.boxplot(data=df)
@@ -81,8 +82,9 @@ def create_boxplot(name, data, xaxis):
     ax.set(xlabel="hidden perceptron", ylabel=name)
     sns.despine(trim=True, left=True)
     # without the splice, name_value becomes b'name':
-    name_value = f'{name}'[2:-1]
-    png_file = f'{name_value}-boxplot-{tf.summary.experimental.get_step()}.png'
+    # name_value = f'{name}'[2:-1]
+    name_value = name.numpy().decode("utf-8")
+    png_file = f'{name_value}-boxplot-{step.numpy()}.png'
     plt.savefig(png_file)
     plt.close()
     pixels = tf.io.decode_png(tf.io.read_file(png_file))
@@ -92,7 +94,8 @@ def create_boxplot(name, data, xaxis):
 
 def tb_boxplot(name, data, xaxis):
     with tf.name_scope(name if name.endswith('/') else name + '/'):
-        inp = [name, data, xaxis]
+        step = tf.summary.experimental.get_step()
+        inp = [name, data, xaxis, step]
         pixels = tf.py_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
 
@@ -222,9 +225,9 @@ class TPM(tf.Module):
                             with tf.name_scope(f'hperceptron{i + 1}'):
                                 tb_summary('weights', self.w[i])
 
+                        # tf.summary.experimental.get_step() is None here:
                         # hpaxis = tf.range(1, self.K + 1)
                         # ipaxis = tf.range(1, self.N + 1)
-                        # tf.summary.experimental.get_step() is None here:
                         # tb_heatmap('weights', self.w, ipaxis, hpaxis)
                         # tb_boxplot('weights', self.w, hpaxis)
                     tf.py_function(log_images, [], [],

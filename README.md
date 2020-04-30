@@ -2,9 +2,11 @@
 
 ## Usage
 
-Replace the `single` command with `hparams` if you want to run hyperparameter optimization.
+Note: Replace the `single` command with `hparams` if you want to run hyperparameter optimization.
 
-Note: it may appear that enabling JIT compilation results in a slowdown. If you don't want to run with JIT, then don't pass the XLA flags to the run command.
+Note: It may appear that enabling JIT compilation results in a slowdown. If you don't want to run with JIT, then don't pass the XLA flags to the run command.
+
+Note: Our script features very verbose logging to TensorBoard. Enable this by passing `-tb` to the run command.
 
 ### CPU
 

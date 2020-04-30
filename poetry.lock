@@ -131,7 +131,7 @@ description = "Extended pickling support for Python objects"
 name = "cloudpickle"
 optional = false
 python-versions = ">=3.5"
-version = "1.4.0"
+version = "1.4.1"
 
 [[package]]
 category = "main"
@@ -681,7 +681,7 @@ description = "distributed object middleware for Python (RPC)"
 name = "pyro4"
 optional = false
 python-versions = "*"
-version = "4.79"
+version = "4.80"
 
 [package.dependencies]
 [package.dependencies.serpent]
@@ -774,7 +774,7 @@ description = "Python client for Redis key-value store"
 name = "redis"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "3.4.1"
+version = "3.5.0"
 
 [package.extras]
 hiredis = ["hiredis (>=0.1.3)"]
@@ -1180,8 +1180,8 @@ click = [
     {file = "click-7.1.2.tar.gz", hash = "sha256:d2b5255c7c6349bc1bd1e59e08cd12acbbd63ce649f2588755783aa94dfb6b1a"},
 ]
 cloudpickle = [
-    {file = "cloudpickle-1.4.0-py3-none-any.whl", hash = "sha256:f734a2cb6c7570841a9af63b3894b2998a03022c81d4885807315bd8c620eb8b"},
-    {file = "cloudpickle-1.4.0.tar.gz", hash = "sha256:1fb85ae78fa2882c172668adc73199d2478580d1faeb9224197105ae481fc175"},
+    {file = "cloudpickle-1.4.1-py3-none-any.whl", hash = "sha256:ff31298eca781315e097bc1f222d8045208c14063a0102cc89bd5899adb4abef"},
+    {file = "cloudpickle-1.4.1.tar.gz", hash = "sha256:0b6258a20a143603d53b037a20983016d4e978f554ec4f36b3d0895b947099ae"},
 ]
 cma = [
     {file = "cma-3.0.3-py2.py3-none-any.whl", hash = "sha256:592d1a1973ee0d97b11958a00a33359f1dda9a7b56ca21b42b674665d0cca760"},
@@ -1573,8 +1573,8 @@ pyparsing = [
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
 ]
 pyro4 = [
-    {file = "Pyro4-4.79-py2.py3-none-any.whl", hash = "sha256:d2d258df297c24540f3eaa591df8fe7b1ac22f7339a2b56a4bde560c63341219"},
-    {file = "Pyro4-4.79.tar.gz", hash = "sha256:b1eb34c9a1e63f731ca480f3e2c48169341a25a7504397badbaaab07e0f3241e"},
+    {file = "Pyro4-4.80-py2.py3-none-any.whl", hash = "sha256:f195a4a9403f58807e66ca269c771e1d268064945f65cfbbf59a1feb12a1695f"},
+    {file = "Pyro4-4.80.tar.gz", hash = "sha256:46847ca703de3f483fbd0b2d22622f36eff03e6ef7ec7704d4ecaa3964cb2220"},
 ]
 pyrsistent = [
     {file = "pyrsistent-0.16.0.tar.gz", hash = "sha256:28669905fe725965daa16184933676547c5bb40a5153055a8dee2a4bd7933ad3"},
@@ -1611,8 +1611,8 @@ ray = [
     {file = "ray-0.8.4-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:d9686f0f8c68cccb5d21d4ec3fb0741042f0681cd6ea2d2b950355c207285c4d"},
 ]
 redis = [
-    {file = "redis-3.4.1-py2.py3-none-any.whl", hash = "sha256:b205cffd05ebfd0a468db74f0eedbff8df1a7bfc47521516ade4692991bb0833"},
-    {file = "redis-3.4.1.tar.gz", hash = "sha256:0dcfb335921b88a850d461dc255ff4708294943322bd55de6cfd68972490ca1f"},
+    {file = "redis-3.5.0-py2.py3-none-any.whl", hash = "sha256:174101a3ce04560d716616290bb40e0a2af45d5844c8bd474c23fc5c52e7a46a"},
+    {file = "redis-3.5.0.tar.gz", hash = "sha256:7378105cd8ea20c4edc49f028581e830c01ad5f00be851def0f4bc616a83cd89"},
 ]
 requests = [
     {file = "requests-2.23.0-py2.py3-none-any.whl", hash = "sha256:43999036bfa82904b6af1d99e4882b560e5e2c68e5c4b0aa03b655f3d7d73fee"},

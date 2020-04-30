@@ -89,7 +89,7 @@ def sync_score(TPM1, TPM2):
     """
     tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
     # adapted from:
-    # https://github.com/tensorflow/tensorflow/blob/f270180a6caa8693f2b2888ac7e6b8e69c4feaa8/tensorflow/python/keras/losses.py#L1073-L1093
+    # https://github.com/tensorflow/tensorflow/blob/e6da7ff3b082dfff2188b242847b620f1fe79426/tensorflow/python/keras/losses.py#L1674-L1706
     # TODO: am I using experimental_implements correctly?
     # TODO: output is sometimes negative!
     @tf.function(experimental_implements="cosine_similarity")
@@ -119,7 +119,9 @@ def sync_score(TPM1, TPM2):
                                  name=f'weights-{tpm2_id}-1d-float')
         weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
         weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
-        return tf.math.reduce_sum(weights1_norm * weights2_norm, axis=-1)
+        # cos_sim can be from -1 to 1, inclusive
+        cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm, axis=-1)
+        return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
     rho = cosine_similarity(TPM1.w, TPM2.w)
 
     # the generalization error, epsilon, is the probability that a repulsive

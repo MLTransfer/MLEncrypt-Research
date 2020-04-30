@@ -228,23 +228,20 @@ def hparams(method, tensorboard):
         seed = tfrandom.uniform(
             [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
         for attack in ['none', 'geometric']:
-            attack_logdir = join(run_logdir, attack)
-            initial_weights = {tpm: weights_tensor_to_variable(
-                weights, tpm) for tpm, weights in initial_weights_tensors.items()}
+            initial_weights = {
+                tpm: weights_tensor_to_variable(weights, tpm)
+                for tpm, weights in initial_weights_tensors.items()
+            }
 
-            # TODO: is the context manager necessary? Tune might handle this
-            attack_writer = tensorflow.summary.create_file_writer(
-                attack_logdir)
-            with attack_writer.as_default():
-                tfrandom.set_seed(seed)
-                run_training_times[attack], \
-                    run_eve_scores[attack], \
-                    run_losses[attack] = \
-                    run(
-                        update_rule, K, N, L,
-                        attack,
-                        initial_weights
-                )
+            tfrandom.set_seed(seed)
+            training_times, sync_scores, losses = run(
+                    update_rule, K, N, L,
+                    attack,
+                    initial_weights
+            )
+            run_training_times[attack] = training_times
+            run_eve_scores[attack] = sync_scores
+            run_losses[attack] = losses
         avg_training_time = tensorflow.math.reduce_mean(
             list(run_training_times.values()))
         avg_eve_score = tensorflow.math.reduce_mean(

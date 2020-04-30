@@ -206,8 +206,8 @@ def iterate(
     tauA = Alice.get_output(X)
     tauB = Bob.get_output(X)
     tauE = Eve.get_output(X)
-    updated = Alice.update(tauB, update_rule_A) and Bob.update(
-        tauA, update_rule_B)
+    updated = Alice.update(tauB, update_rule_A) \
+        and Bob.update(tauA, update_rule_B)
     if updated:
         nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
@@ -312,16 +312,13 @@ def run(
     try:
         # synchronization score of Alice and Bob
         score = tf.Variable(0.0, trainable=False, name='score-A-B')
-    except ValueError:
-        # tf.function-decorated function tried to create variables
-        # on non-first call.
-        score = 0.
-    try:
+
         # synchronization score of Alice and Eve
         score_eve = tf.Variable(0.0, trainable=False, name='score-A-E')
     except ValueError:
         # tf.function-decorated function tried to create variables
         # on non-first call.
+        score = 0.
         score_eve = 0.
 
     # https://www.tensorflow.org/tutorials/customization/performance#zero_iterations

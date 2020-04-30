@@ -91,7 +91,6 @@ def sync_score(TPM1, TPM2):
     # adapted from:
     # https://github.com/tensorflow/tensorflow/blob/e6da7ff3b082dfff2188b242847b620f1fe79426/tensorflow/python/keras/losses.py#L1674-L1706
     # TODO: am I using experimental_implements correctly?
-    # TODO: output is sometimes negative!
     @tf.function(experimental_implements="cosine_similarity")
     def cosine_similarity(weights1, weights2):
         """Computes the cosine similarity between labels and predictions.
@@ -158,7 +157,7 @@ def select_random_from_list(input_list, op_name=None):
 
 
 # @tf.function(experimental_compile=True)
-@tf.function
+@tf.function(experimental_relax_shapes=True)
 def iterate(
     X,
     Alice, Bob, Eve, update_rule,

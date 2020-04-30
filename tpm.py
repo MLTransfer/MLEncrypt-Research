@@ -59,7 +59,7 @@ def create_heatmap(name, min, max, ticks, boundaries, data, xaxis, yaxis):
 
 
 def tb_heatmap(name, data, xaxis, yaxis):
-    with tf.name_scope(name):
+    with tf.name_scope(name if name.endswith('/') else name + '/'):
         data_float = tf.cast(data, tf.float64)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
@@ -91,7 +91,7 @@ def create_boxplot(name, data, xaxis):
 
 
 def tb_boxplot(name, data, xaxis):
-    with tf.name_scope(name):
+    with tf.name_scope(name if name.endswith('/') else name + '/'):
         inp = [name, data, xaxis]
         pixels = tf.py_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))

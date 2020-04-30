@@ -120,9 +120,6 @@ def cli():
     '-tb', '--tensorboard', is_flag=True
 )
 def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
-    import tensorflow.summary
-    # import tensorflow.profiler
-
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
 
     initial_weights = {
@@ -137,6 +134,9 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     )
 
     if tensorboard:
+        import tensorflow.summary
+        # import tensorflow.profiler
+
         tensorflow.summary.trace_on()
         # TODO: don't profile for more than 10 steps at a time
         # tensorflow.profiler.experimental.start(logdir)
@@ -156,6 +156,105 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
             initial_weights,
             key_length=key_length, iv_length=iv_length
         )
+
+
+@cli.command(name='multiple')
+@click.argument('count', type=int)
+@click.option(
+    '-o', '--output_file',
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    default='./output.csv',
+    show_default=True
+)
+@click.option(
+    '-ur', '--update_rule',
+    type=click.Choice([
+        'random-same',
+        'random-different',
+        'hebbian',
+        'anti_hebbian',
+        'random_walk',
+    ]),
+    default='hebbian',
+    show_default=True
+)
+@click.option(
+    '-K', '--K', default=8, show_default=True, type=int
+)
+@click.option(
+    '-N', '--N', default=12, show_default=True, type=int
+)
+@click.option(
+    '-L', '--L', default=4, show_default=True, type=int
+)
+@click.option(
+    '-a', '--attack',
+    type=click.Choice([
+        'none',
+        'geometric',
+        # 'probabilistic',
+    ]),
+    default='none',
+    show_default=True
+)
+@click.option(
+    '-kl', '--key_length', default=256, show_default=True, type=int
+)
+@click.option(
+    '-ivl', '--iv_length', default=128, show_default=True, type=int
+)
+@click.option(
+    '-tb', '--tensorboard', is_flag=True
+)
+def multiple(
+    count, output_file,
+    update_rule, k, n, l,
+    attack,
+    key_length, iv_length,
+    tensorboard
+):
+    environ["MLENCRYPT_TB"] = str(tensorboard).upper()
+    with open(output_file, 'w') as losses_writer:
+        losses_writer.write(
+            "training time (s),synchronization score (%),loss\n"
+        )
+        for _ in range(count):
+            initial_weights = {
+                tpm: weights_tensor_to_variable(weights, tpm)
+                for tpm, weights in get_initial_weights(k, n, l).items()
+            }
+
+            if tensorboard:
+                import tensorflow.summary
+                # import tensorflow.profiler
+
+                tensorflow.summary.trace_on()
+                # TODO: don't profile for more than 10 steps at a time
+                # tensorflow.profiler.experimental.start(logdir)
+                with tensorflow.summary.create_file_writer(join(
+                    'logs/',
+                    str(datetime.now()),
+                    f"ur={update_rule},K={k},N={n},L={l},attack={attack}"
+                )).as_default():
+                    training_time, sync_score, loss = run(
+                        update_rule, k, n, l,
+                        attack,
+                        initial_weights,
+                        key_length=key_length, iv_length=iv_length
+                    )
+                    tensorflow.summary.trace_export("graph")
+                    # tensorflow.profiler.experimental.stop()
+            else:
+                training_time, sync_score, loss = run(
+                    update_rule, k, n, l,
+                    attack,
+                    initial_weights,
+                    key_length=key_length, iv_length=iv_length
+                )
+            data = (
+                f"{training_time},{sync_score.numpy()},{loss.numpy()}\n"
+            )
+            losses_writer.write(data)
 
 
 @cli.command(name='hparams')
@@ -191,13 +290,13 @@ def hparams(method, tensorboard):
 
     logdir = f'logs/hparams/{datetime.now()}'
 
-    # These results show that K = 3 is the optimal choice for the cryptographic
-    # application of neural synchronization. K = 1 and K = 2 are too insecure
-    # in regard to the geometric attack. And for K > 3 the effort of A and B
-    # grows exponentially with increasing L, while the simple attack is quite
-    # successful in the limit K -> infinity. Consequently, one should only use
-    # Tree Parity Machines with three hidden units for the neural key-exchange
-    # protocol. (Ruttor, 2006)
+    # "These results show that K = 3 is the optimal choice for the
+    # cryptographic application of neural synchronization. K = 1 and K = 2 are
+    # too insecure in regard to the geometric attack. And for K > 3 the effort
+    # of A and B grows exponentially with increasing L, while the simple attack
+    # is quite successful in the limit K -> infinity. Consequently, one should
+    # only use Tree Parity Machines with three hidden units for the neural
+    # key-exchange protocol." (Ruttor, 2006)
 
     update_rules = [
         'random-same', 'random-different',

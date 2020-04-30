@@ -12,6 +12,7 @@ weights-heatmap-*.png
 weights-boxplot-*.png
 inputs-heatmap-*.png
 inputs-boxplot-*.png
+output.csv
 
 
 # Byte-compiled / optimized / DLL files

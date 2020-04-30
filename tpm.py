@@ -2,14 +2,15 @@
 from update_rules import hebbian, anti_hebbian, random_walk
 
 import hashlib
-from os import remove, environ
+from os import environ
 
 import tensorflow as tf
+import seaborn as sns
+import pandas as pd
+import numpy as np
 from matplotlib import use as matplot_backend
 matplot_backend('agg')
 import matplotlib.pyplot as plt  # noqa
-import seaborn as sns  # noqa
-import pandas as pd  # noqa
 
 sns.set()
 
@@ -30,14 +31,14 @@ def tb_summary(name, data):
         tf.summary.histogram('histogram', data)
 
 
-def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis, step):
-    _, ax = plt.subplots()
+def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
+    fig, ax = plt.subplots()
     cmap = plt.get_cmap(lut=int(data_range.numpy().item()))
     sns.heatmap(
         pd.DataFrame(
             data=data.numpy(),
-            index=yaxis,
-            columns=xaxis
+            index=yaxis.numpy(),
+            columns=xaxis.numpy()
         ),
         ax=ax,
         cmap=cmap,
@@ -47,13 +48,20 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis, step
         }
     )
     ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
-    # without the splice, name_value becomes b'name':
-    name_value = name.numpy().decode("utf-8")
-    png_file = f'{name_value}-heatmap-{step.numpy()}.png'
-    plt.savefig(png_file)
+
+    fig.canvas.draw()
+    # w, h = fig.get_size_inches() * fig.get_dpi()
+    w, h = fig.canvas.get_width_height()
+    w = tf.cast(w, tf.uint16)
+    h = tf.cast(h, tf.uint16)
+    pixels = tf.reshape(
+        tf.convert_to_tensor(
+            np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep=''),
+            dtype=tf.uint8
+        ),
+        (h, w, 3)
+    )
     plt.close()
-    pixels = tf.io.decode_png(tf.io.read_file(png_file))
-    remove(png_file)
     return pixels
 
 
@@ -65,36 +73,41 @@ def tb_heatmap(name, data, xaxis, yaxis):
         data_range = max - min + 1
         ticks = tf.range(min, max + 1)
         boundaries = tf.range(min - .5, max + 1.5)
-        step = tf.summary.experimental.get_step()
-        inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis, step]
+        inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis]
         # TODO: use tf.numpy_function, only problem is that pixels must be a
         # numpy array
         pixels = tf.py_function(create_heatmap, inp, tf.uint8)
         tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
 
 
-def create_boxplot(name, data, xaxis, step):
-    _, ax = plt.subplots()
-    df = pd.DataFrame(data=data.numpy(), index=xaxis).transpose()
-    sns.boxplot(data=df)
+def create_boxplot(name, data, xaxis):
+    fig, ax = plt.subplots()
+    df = pd.DataFrame(data=data.numpy(), index=xaxis.numpy()).transpose()
+    sns.boxplot(data=df, ax=ax)
     sns.swarmplot(data=df, size=2, color=".3", linewidth=0)
     ax.xaxis.grid(True)
-    ax.set(xlabel="hidden perceptron", ylabel=name)
-    sns.despine(trim=True, left=True)
-    # without the splice, name_value becomes b'name':
-    name_value = name.numpy().decode("utf-8")
-    png_file = f'{name_value}-boxplot-{step.numpy()}.png'
-    plt.savefig(png_file)
+    ax.set(xlabel="hidden perceptron", ylabel=name.numpy())
+    sns.despine(fig=fig, ax=ax, trim=True, left=True)
+
+    fig.canvas.draw()
+    # w, h = fig.get_size_inches() * fig.get_dpi()
+    w, h = fig.canvas.get_width_height()
+    w = tf.cast(w, tf.uint16)
+    h = tf.cast(h, tf.uint16)
+    pixels = tf.reshape(
+        tf.convert_to_tensor(
+            np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep=''),
+            dtype=tf.uint8
+        ),
+        (h, w, 3)
+    )
     plt.close()
-    pixels = tf.io.decode_png(tf.io.read_file(png_file))
-    remove(png_file)
     return pixels
 
 
 def tb_boxplot(name, data, xaxis):
     with tf.name_scope(name if name.endswith('/') else name + '/'):
-        step = tf.summary.experimental.get_step()
-        inp = [name, data, xaxis, step]
+        inp = [name, data, xaxis]
         pixels = tf.py_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
 
@@ -217,18 +230,17 @@ class TPM(tf.Module):
                     tb_summary('sigma', self.sigma)
                     tf.summary.histogram('weights', self.w)
 
+                    # hpaxis = tf.range(1, self.K + 1)
+                    # ipaxis = tf.range(1, self.N + 1)
+                    # tb_heatmap('weights', self.w, ipaxis, hpaxis)
+                    # tb_boxplot('weights', self.w, hpaxis)
+
                     def log_images():
                         for i in range(self.K):
                             # hperceptron weights aren't logged, see
                             # https://github.com/tensorflow/tensorflow/issues/38772
                             with tf.name_scope(f'hperceptron{i + 1}'):
                                 tb_summary('weights', self.w[i])
-
-                        # tf.summary.experimental.get_step() is None here:
-                        # hpaxis = tf.range(1, self.K + 1)
-                        # ipaxis = tf.range(1, self.N + 1)
-                        # tb_heatmap('weights', self.w, ipaxis, hpaxis)
-                        # tb_boxplot('weights', self.w, hpaxis)
                     tf.py_function(log_images, [], [],
                                    name='tb-images-weights')
             return True

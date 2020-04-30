@@ -48,7 +48,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis, step
     )
     ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
     # without the splice, name_value becomes b'name':
-    name_value = f'{name}'[2:-1]
+    name_value = name.numpy().decode("utf-8")
     png_file = f'{name_value}-heatmap-{step.numpy()}.png'
     plt.savefig(png_file)
     plt.close()
@@ -82,7 +82,6 @@ def create_boxplot(name, data, xaxis, step):
     ax.set(xlabel="hidden perceptron", ylabel=name)
     sns.despine(trim=True, left=True)
     # without the splice, name_value becomes b'name':
-    # name_value = f'{name}'[2:-1]
     name_value = name.numpy().decode("utf-8")
     png_file = f'{name_value}-boxplot-{step.numpy()}.png'
     plt.savefig(png_file)

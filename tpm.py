@@ -30,10 +30,9 @@ def tb_summary(name, data):
         tf.summary.histogram('histogram', data)
 
 
-def create_heatmap(name, min, max, ticks, boundaries, data, xaxis, yaxis):
+def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     _, ax = plt.subplots()
-    data_range = int(max.numpy().item() - min.numpy().item() + 1)
-    cmap = plt.get_cmap(lut=data_range)
+    cmap = plt.get_cmap(lut=int(data_range.numpy().item()))
     sns.heatmap(
         pd.DataFrame(
             data=data.numpy(),
@@ -63,9 +62,10 @@ def tb_heatmap(name, data, xaxis, yaxis):
         data_float = tf.cast(data, tf.float64)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
+        data_range = max - min + 1
         ticks = tf.range(min, max + 1)
         boundaries = tf.range(min - .5, max + 1.5)
-        inp = [name, min, max, ticks, boundaries, data, xaxis, yaxis]
+        inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis]
         # TODO: use tf.numpy_function, only problem is that pixels must be a
         # numpy array
         pixels = tf.py_function(create_heatmap, inp, tf.uint8)

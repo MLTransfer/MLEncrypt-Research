@@ -335,11 +335,6 @@ def run(
     try:
         nb_updates = tf.Variable(
             0, name='updates-A-B', trainable=False, dtype=tf.uint16)
-    except ValueError:
-        # tf.function-decorated function tried to create variables
-        # on non-first call.
-        pass
-    try:
         nb_eve_updates = tf.Variable(
             0, name='updates-E', trainable=False, dtype=tf.uint16)
     except ValueError:

@@ -125,8 +125,10 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
 
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
 
-    initial_weights = {tpm: weights_tensor_to_variable(
-        weights, tpm) for tpm, weights in get_initial_weights(k, n, l).items()}
+    initial_weights = {
+        tpm: weights_tensor_to_variable(weights, tpm)
+        for tpm, weights in get_initial_weights(k, n, l).items()
+    }
 
     logdir = join(
         'logs/',
@@ -134,18 +136,26 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
         f"ur={update_rule},K={k},N={n},L={l},attack={attack}"
     )
 
-    tensorflow.summary.trace_on()
-    # TODO: don't profile for more than 10 steps at a time
-    # tensorflow.profiler.experimental.start(logdir)
-    with tensorflow.summary.create_file_writer(logdir).as_default():
+    if tensorboard:
+        tensorflow.summary.trace_on()
+        # TODO: don't profile for more than 10 steps at a time
+        # tensorflow.profiler.experimental.start(logdir)
+        with tensorflow.summary.create_file_writer(logdir).as_default():
+            run(
+                update_rule, k, n, l,
+                attack,
+                initial_weights,
+                key_length=key_length, iv_length=iv_length
+            )
+            tensorflow.summary.trace_export("graph")
+            # tensorflow.profiler.experimental.stop()
+    else:
         run(
             update_rule, k, n, l,
             attack,
             initial_weights,
             key_length=key_length, iv_length=iv_length
         )
-        tensorflow.summary.trace_export("graph")
-        # tensorflow.profiler.experimental.stop()
 
 
 @cli.command(name='hparams')

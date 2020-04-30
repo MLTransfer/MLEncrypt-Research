@@ -222,11 +222,11 @@ class TPM(tf.Module):
                             with tf.name_scope(f'hperceptron{i + 1}'):
                                 tb_summary('weights', self.w[i])
 
-                        hpaxis = tf.range(1, self.K + 1)
-                        ipaxis = tf.range(1, self.N + 1)
+                        # hpaxis = tf.range(1, self.K + 1)
+                        # ipaxis = tf.range(1, self.N + 1)
                         # tf.summary.experimental.get_step() is None here:
-                        tb_heatmap('weights', self.w, ipaxis, hpaxis)
-                        tb_boxplot('weights', self.w, hpaxis)
+                        # tb_heatmap('weights', self.w, ipaxis, hpaxis)
+                        # tb_boxplot('weights', self.w, hpaxis)
                     tf.py_function(log_images, [], [],
                                    name='tb-images-weights')
             return True

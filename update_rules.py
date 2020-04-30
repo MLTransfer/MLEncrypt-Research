@@ -20,6 +20,7 @@ def theta(t1, t2):
 def hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
     W_plus = tf.TensorArray(W.dtype, size=k * n)
+    # TODO: is it faster to do this or to use a TensorArray of TensorArrays
     for i in tf.range(k):
         for j in tf.range(n):
             W_plus = W_plus.write(

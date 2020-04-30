@@ -232,13 +232,24 @@ def hparams(method, tensorboard):
                 tpm: weights_tensor_to_variable(weights, tpm)
                 for tpm, weights in initial_weights_tensors.items()
             }
-
             tfrandom.set_seed(seed)
-            training_times, sync_scores, losses = run(
+
+            if tensorboard:
+                attack_logdir = join(run_logdir, attack)
+                attack_writer = tensorflow.summary.create_file_writer(
+                    attack_logdir)
+                with attack_writer.as_default():
+                    training_times, sync_scores, losses = run(
+                        update_rule, K, N, L,
+                        attack,
+                        initial_weights
+                    )
+            else:
+                training_times, sync_scores, losses = run(
                     update_rule, K, N, L,
                     attack,
                     initial_weights
-            )
+                )
             run_training_times[attack] = training_times
             run_eve_scores[attack] = sync_scores
             run_losses[attack] = losses
@@ -408,7 +419,7 @@ def hparams(method, tensorboard):
         search_alg=algo,
         scheduler=scheduler,
         # num_samples=100,
-        num_samples=1,
+        num_samples=10,
     )
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 

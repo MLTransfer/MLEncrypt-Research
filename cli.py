@@ -218,6 +218,7 @@ def multiple(
         losses_writer.write(
             "training time (s),synchronization score (%),loss\n"
         )
+        losses_writer.flush()
         for _ in range(count):
             initial_weights = {
                 tpm: weights_tensor_to_variable(weights, tpm)
@@ -255,6 +256,7 @@ def multiple(
                 f"{training_time},{sync_score.numpy()},{loss.numpy()}\n"
             )
             losses_writer.write(data)
+            losses_writer.flush()
 
 
 @cli.command(name='hparams')

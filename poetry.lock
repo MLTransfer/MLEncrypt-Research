@@ -355,7 +355,7 @@ SparkTrials = ["pyspark"]
 dev = ["black", "pre-commit", "nose", "pytest"]
 
 [package.source]
-reference = "1d438e5e96a7cc2a839dd2ca3aeaffc64e144976"
+reference = "0d999df5b72a8356112303d8c15a052e3c2eb0aa"
 type = "git"
 url = "https://github.com/hyperopt/hyperopt.git"
 [[package]]

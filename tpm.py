@@ -33,18 +33,18 @@ def tb_summary(name, data):
 
 def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     fig, ax = plt.subplots()
-    cmap = plt.get_cmap(lut=int(data_range.numpy().item()))
+    cmap = plt.get_cmap(lut=int(data_range.item()))
     sns.heatmap(
         pd.DataFrame(
-            data=data.numpy(),
-            index=yaxis.numpy(),
-            columns=xaxis.numpy()
+            data=data,
+            index=yaxis,
+            columns=xaxis
         ),
         ax=ax,
         cmap=cmap,
         cbar_kws={
-            "ticks": ticks.numpy(),
-            "boundaries": boundaries.numpy()
+            "ticks": ticks,
+            "boundaries": boundaries
         }
     )
     ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
@@ -52,15 +52,8 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
     w, h = fig.canvas.get_width_height()
-    w = tf.cast(w, tf.uint16)
-    h = tf.cast(h, tf.uint16)
-    pixels = tf.reshape(
-        tf.convert_to_tensor(
-            np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep=''),
-            dtype=tf.uint8
-        ),
-        (h, w, 3)
-    )
+    pixels = np.fromstring(fig.canvas.tostring_rgb(),
+                           dtype=np.uint8, sep='').reshape(h, w, 3)
     plt.close()
     return pixels
 
@@ -74,33 +67,32 @@ def tb_heatmap(name, data, xaxis, yaxis):
         ticks = tf.range(min, max + 1)
         boundaries = tf.range(min - .5, max + 1.5)
         inp = [name, data_range, ticks, boundaries, data, xaxis, yaxis]
-        # TODO: use tf.numpy_function, only problem is that pixels must be a
-        # numpy array
-        pixels = tf.py_function(create_heatmap, inp, tf.uint8)
+        # tf.numpy_function: n=50, x-bar=155.974089 s, sigma=36.414627 s
+        # tf.py_function:    n=50, x-bar=176.504593 s, sigma=47.747290 s
+        # With Welch's t-test, we had a p-value of 0.00880203; we have
+        # sufficient evidence to conclude that tf.numpy_function is
+        # significantly faster than tf.py_function in this use-case.
+        # Note that at the time this script was benchmarked for the above
+        # results, image summaries for weights were not logged and the script
+        # was not run with XLA.
+        pixels = tf.numpy_function(create_heatmap, inp, tf.uint8)
         tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
 
 
 def create_boxplot(name, data, xaxis):
     fig, ax = plt.subplots()
-    df = pd.DataFrame(data=data.numpy(), index=xaxis.numpy()).transpose()
+    df = pd.DataFrame(data=data, index=xaxis).transpose()
     sns.boxplot(data=df, ax=ax)
     sns.swarmplot(data=df, size=2, color=".3", linewidth=0)
     ax.xaxis.grid(True)
-    ax.set(xlabel="hidden perceptron", ylabel=name.numpy())
+    ax.set(xlabel="hidden perceptron", ylabel=name)
     sns.despine(fig=fig, ax=ax, trim=True, left=True)
 
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
     w, h = fig.canvas.get_width_height()
-    w = tf.cast(w, tf.uint16)
-    h = tf.cast(h, tf.uint16)
-    pixels = tf.reshape(
-        tf.convert_to_tensor(
-            np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep=''),
-            dtype=tf.uint8
-        ),
-        (h, w, 3)
-    )
+    pixels = np.fromstring(fig.canvas.tostring_rgb(),
+                           dtype=np.uint8, sep='').reshape(h, w, 3)
     plt.close()
     return pixels
 
@@ -108,7 +100,15 @@ def create_boxplot(name, data, xaxis):
 def tb_boxplot(name, data, xaxis):
     with tf.name_scope(name if name.endswith('/') else name + '/'):
         inp = [name, data, xaxis]
-        pixels = tf.py_function(create_boxplot, inp, tf.uint8)
+        # tf.numpy_function: n=50, x-bar=155.974089 s, sigma=36.414627 s
+        # tf.py_function:    n=50, x-bar=176.504593 s, sigma=47.747290 s
+        # With Welch's t-test, we had a p-value of 0.00880203; we have
+        # sufficient evidence to conclude that tf.numpy_function is
+        # significantly faster than tf.py_function in this use-case.
+        # Note that at the time this script was benchmarked for the above
+        # results, image summaries for weights were not logged and the script
+        # was not run with XLA.
+        pixels = tf.numpy_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
 
 

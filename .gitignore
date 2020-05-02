@@ -13,6 +13,8 @@ weights-boxplot-*.png
 inputs-heatmap-*.png
 inputs-boxplot-*.png
 output.csv
+pyfunc.csv
+numpyfunc.csv
 
 
 # Byte-compiled / optimized / DLL files

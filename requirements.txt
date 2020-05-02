@@ -178,7 +178,7 @@ h5py==2.10.0 \
     --hash=sha256:84412798925dc870ffd7107f045d7659e60f5d46d1c70c700375248bf6bf512d
 hpbandster==0.7.4 \
     --hash=sha256:49ffc32688155b509e62f3617b52ae15a96c9bff2c996a23df83f279106c5921
--e git+https://github.com/hyperopt/hyperopt.git@1d438e5e96a7cc2a839dd2ca3aeaffc64e144976#egg=hyperopt
+-e git+https://github.com/hyperopt/hyperopt.git@0d999df5b72a8356112303d8c15a052e3c2eb0aa#egg=hyperopt
 idna==2.9 \
     --hash=sha256:a068a21ceac8a4d63dbfd964670474107f541babbd2250d61922f029858365fa \
     --hash=sha256:7588d1c14ae4c77d74036e8c22ff447b26d0fde8f007354fd48a7814db15b7cb

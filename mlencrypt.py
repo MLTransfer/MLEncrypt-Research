@@ -226,7 +226,10 @@ def iterate(
         name='iteration-update-E-geometric'
     )
     should_update_E = tf.math.logical_or(
-        tau_A_B_E_equal, update_E_geometric, name='iteration-update-E')
+        tau_A_B_E_equal,
+        update_E_geometric,
+        name='iteration-update-E'
+    )
 
     def update_E():
         Eve.update(tauA, update_rule_E)

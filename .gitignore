@@ -2,12 +2,6 @@ notes.txt
 
 .DS_Store
 logs/
-legacy-logs/
-runs/
-!logs/hparams/time_taken.py
-!logs/hparams/time_taken.csv
-!logs/hparams/time_taken.r
-!logs/hparams/time_taken.svg
 weights-heatmap-*.png
 weights-boxplot-*.png
 inputs-heatmap-*.png

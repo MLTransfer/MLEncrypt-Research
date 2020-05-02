@@ -35,17 +35,10 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     fig, ax = plt.subplots()
     cmap = plt.get_cmap(lut=int(data_range.item()))
     sns.heatmap(
-        pd.DataFrame(
-            data=data,
-            index=yaxis,
-            columns=xaxis
-        ),
+        pd.DataFrame(data=data, index=yaxis, columns=xaxis),
         ax=ax,
         cmap=cmap,
-        cbar_kws={
-            "ticks": ticks,
-            "boundaries": boundaries
-        }
+        cbar_kws={"ticks": ticks, "boundaries": boundaries}
     )
     ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
 
@@ -224,25 +217,33 @@ class TPM(tf.Module):
                     + "'random_walk'."
                 )
             if environ["MLENCRYPT_TB"] == 'TRUE':
-                # TODO: don't refer to variables outside of the method scope,
-                # add them as arguments (maybe tf.numpy_function) will help
                 with self.name_scope:
                     tb_summary('sigma', self.sigma)
                     tf.summary.histogram('weights', self.w)
+
+                    # doesn't work with XLA:
+                    # tensorflow.python.framework.errors_impl.InvalidArgumentError:
+                    # Trying to access resource using the wrong type. Expected
+                    # N10tensorflow22SummaryWriterInterfaceE got
+                    # N10tensorflow3VarE
 
                     # hpaxis = tf.range(1, self.K + 1)
                     # ipaxis = tf.range(1, self.N + 1)
                     # tb_heatmap('weights', self.w, ipaxis, hpaxis)
                     # tb_boxplot('weights', self.w, hpaxis)
 
-                    def log_images():
-                        for i in range(self.K):
+                    def log_weights_hperceptron(K, weights):
+                        for i in range(K):
                             # hperceptron weights aren't logged, see
                             # https://github.com/tensorflow/tensorflow/issues/38772
                             with tf.name_scope(f'hperceptron{i + 1}'):
-                                tb_summary('weights', self.w[i])
-                    tf.py_function(log_images, [], [],
-                                   name='tb-images-weights')
+                                tb_summary('weights', weights[i])
+                    tf.numpy_function(
+                        log_weights_hperceptron,
+                        [self.K, self.w],
+                        [],
+                        name='tb-images-weights'
+                    )
             return True
         else:
             return False

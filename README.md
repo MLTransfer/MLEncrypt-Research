@@ -26,5 +26,3 @@ TF_XLA_FLAGS=--tf_xla_auto_jit=2 poetry run python cli.py single
     -   Mr. Fariz Rahman's implementation was the initial basis for ours
 -   <https://github.com/brigan/NeuralCryptography>
     -   ported Dr. Luís F. Seoane's C++ implementation of the probabilistic attack to TensorFlow
--   <https://github.com/drsimonj/blogR/blob/master/Rmd/pretty-scatter-plots-of-correlated-vars.Rmd>
-    -   used for creating 2-dimensional scatterplots

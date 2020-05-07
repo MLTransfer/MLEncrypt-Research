@@ -16,7 +16,7 @@ click = "^7.1.1"
 ray = {extras = ["tune"], version = "^0.8.4"}
 hyperopt = {git = "https://github.com/hyperopt/hyperopt.git"}
 bayesian-optimization = "^1.1.0"
-nevergrad = "^0.4.0"
+nevergrad = "^0.4.1"
 scikit-optimize = "^0.7.4"
 dragonfly-opt = "^0.1.5"
 hpbandster = "^0.7.4"

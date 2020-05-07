@@ -19,18 +19,19 @@ def theta(t1, t2):
 
 def hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus = tf.TensorArray(W.dtype, size=k * n)
-    # TODO: is it faster to do this or to use a TensorArray of TensorArrays
+    W_plus_rows = tf.TensorArray(W.dtype, size=k)
     for i in tf.range(k):
+        W_plus_cols = tf.TensorArray(W.dtype, size=n)
         for j in tf.range(n):
-            W_plus = W_plus.write(
-                i * n + j,
+            W_plus_cols = W_plus_cols.write(
+                j,
                 X[i, j]
                 * tau1
                 * theta(sigma[i], tau1)
                 * theta(tau1, tau2)
             )
-    W.assign_add(tf.reshape(W_plus.stack(), W.shape))
+        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
+    W.assign_add(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int64),
@@ -40,17 +41,19 @@ def hebbian(W, X, sigma, tau1, tau2, l):
 
 def anti_hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus = tf.TensorArray(W.dtype, size=k * n)
+    W_plus_rows = tf.TensorArray(W.dtype, size=k)
     for i in tf.range(k):
+        W_plus_cols = tf.TensorArray(W.dtype, size=n)
         for j in tf.range(n):
-            W_plus = W_plus.write(
-                i * n + j,
+            W_plus_cols = W_plus_cols.write(
+                j,
                 X[i, j]
                 * tau1
                 * theta(sigma[i], tau1)
                 * theta(tau1, tau2)
             )
-    W.assign_sub(tf.reshape(W_plus.stack(), W.shape))
+        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
+    W.assign_sub(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int64),
@@ -60,16 +63,18 @@ def anti_hebbian(W, X, sigma, tau1, tau2, l):
 
 def random_walk(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus = tf.TensorArray(W.dtype, size=k * n)
+    W_plus_rows = tf.TensorArray(W.dtype, size=k)
     for i in tf.range(k):
+        W_plus_cols = tf.TensorArray(W.dtype, size=n)
         for j in tf.range(n):
-            W_plus = W_plus.write(
-                i * n + j,
+            W_plus_cols = W_plus_cols.write(
+                j,
                 X[i, j]
                 * theta(sigma[i], tau1)
                 * theta(tau1, tau2)
             )
-    W.assign_add(tf.reshape(W_plus.stack(), W.shape))
+        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
+    W.assign_add(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int64),

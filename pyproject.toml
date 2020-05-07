@@ -8,11 +8,11 @@ authors = ["Sumanth Ratna <sumanthratna@gmail.com>", "Anika Karpurapu"]
 python = "^3.6.8"
 numpy = "^1.18.4"
 seaborn = "^0.10.1"
-tensorflow = "^2.1.0"
-tensorflow-estimator = "2.1.0"
+tensorflow = "^2.2.0"
+# tensorflow-estimator = "2.2.0"
 setuptools = "41.0.0"
 click = "^7.1.2"
-ray = {extras = ["tune"], version = "^0.8.4"}
+ray = {extras = ["tune"], version = "^0.8.5"}
 hyperopt = {git = "https://github.com/hyperopt/hyperopt.git"}
 bayesian-optimization = "^1.1.0"
 nevergrad = "^0.4.1"

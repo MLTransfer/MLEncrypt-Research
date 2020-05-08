@@ -8,6 +8,8 @@ Note: It may appear that enabling JIT compilation results in a slowdown. If you 
 
 Note: Our script features very verbose logging to TensorBoard. Enable this by passing `-tb` to the run command.
 
+Note: TensorBoard logging does not currently work with XLA. Comment out the image summaries for weights if you want to use XLA with TensorBoard logging.
+
 ### CPU
 
 ```zsh

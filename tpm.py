@@ -51,8 +51,9 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     return pixels
 
 
-def tb_heatmap(name, data, xaxis, yaxis):
-    with tf.name_scope(name if name.endswith('/') else name + '/'):
+def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
+    scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
+    with tf.name_scope(scope if scope else scope_name) as scope:
         data_float = tf.cast(data, tf.float64)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
@@ -70,6 +71,7 @@ def tb_heatmap(name, data, xaxis, yaxis):
         # was not run with XLA.
         pixels = tf.numpy_function(create_heatmap, inp, tf.uint8)
         tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
+    return scope
 
 
 def create_boxplot(name, data, xaxis):
@@ -90,8 +92,9 @@ def create_boxplot(name, data, xaxis):
     return pixels
 
 
-def tb_boxplot(name, data, xaxis):
-    with tf.name_scope(name if name.endswith('/') else name + '/'):
+def tb_boxplot(name, data, xaxis, unique=True, scope=None):
+    scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
+    with tf.name_scope(scope if scope else scope_name) as scope:
         inp = [name, data, xaxis]
         # tf.numpy_function: n=50, x-bar=155.974089 s, sigma=36.414627 s
         # tf.py_function:    n=50, x-bar=176.504593 s, sigma=47.747290 s
@@ -103,6 +106,7 @@ def tb_boxplot(name, data, xaxis):
         # was not run with XLA.
         pixels = tf.numpy_function(create_boxplot, inp, tf.uint8)
         tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
+    return scope
 
 
 class TPM(tf.Module):
@@ -217,7 +221,7 @@ class TPM(tf.Module):
                     + "'random_walk'."
                 )
             if environ["MLENCRYPT_TB"] == 'TRUE':
-                with self.name_scope:
+                with tf.name_scope(self.name):
                     tb_summary('sigma', self.sigma)
                     tf.summary.histogram('weights', self.w)
 
@@ -227,10 +231,24 @@ class TPM(tf.Module):
                     # N10tensorflow22SummaryWriterInterfaceE got
                     # N10tensorflow3VarE
 
-                    # hpaxis = tf.range(1, self.K + 1)
-                    # ipaxis = tf.range(1, self.N + 1)
-                    # tb_heatmap('weights', self.w, ipaxis, hpaxis)
-                    # tb_boxplot('weights', self.w, hpaxis)
+                    hpaxis = tf.range(1, self.K + 1)
+                    ipaxis = tf.range(1, self.N + 1)
+                    # the f'{self.name}/weights/', is a temporary fix for
+                    # weights_1
+                    weights_scope = tb_heatmap(
+                        f'{self.name}/weights/',
+                        self.w,
+                        ipaxis,
+                        hpaxis,
+                        unique=False
+                    )
+                    tb_boxplot(
+                        f'{self.name}/weights/',
+                        self.w,
+                        hpaxis,
+                        unique=False,
+                        scope=weights_scope
+                    )
 
                     def log_weights_hperceptron(K, weights):
                         for i in range(K):

@@ -157,7 +157,16 @@ def select_random_from_list(input_list, op_name=None):
 
 
 # @tf.function(experimental_compile=True)
-@tf.function(experimental_relax_shapes=True)
+@tf.function(
+    experimental_relax_shapes=True,
+    experimental_autograph_options=(
+        # tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS,
+        # tf.autograph.experimental.Feature.ASSERT_STATEMENTS,
+        tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS,
+        # tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
+        # tf.autograph.experimental.Feature.LISTS
+    )
+)
 def iterate(
     X,
     Alice, Bob, Eve, update_rule,

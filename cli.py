@@ -139,7 +139,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
 
         tensorflow.summary.trace_on()
         # TODO: don't profile for more than 10 steps at a time
-        # tensorflow.profiler.experimental.start(logdir)
+        tensorflow.profiler.experimental.start(logdir)
         with tensorflow.summary.create_file_writer(logdir).as_default():
             run(
                 update_rule, k, n, l,
@@ -148,7 +148,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
                 key_length=key_length, iv_length=iv_length
             )
             tensorflow.summary.trace_export("graph")
-            # tensorflow.profiler.experimental.stop()
+            tensorflow.profiler.experimental.stop()
     else:
         run(
             update_rule, k, n, l,
@@ -229,14 +229,18 @@ def multiple(
                 import tensorflow.summary
                 # import tensorflow.profiler
 
-                tensorflow.summary.trace_on()
-                # TODO: don't profile for more than 10 steps at a time
-                # tensorflow.profiler.experimental.start(logdir)
-                with tensorflow.summary.create_file_writer(join(
+                logdir = join(
                     'logs/',
                     str(datetime.now()),
                     f"ur={update_rule},K={k},N={n},L={l},attack={attack}"
-                )).as_default():
+                )
+
+                tensorflow.summary.trace_on()
+                # TODO: don't profile for more than 10 steps at a time
+                tensorflow.profiler.experimental.start(logdir)
+                with tensorflow.summary.create_file_writer(
+                    logdir
+                ).as_default():
                     training_time, sync_score, loss = run(
                         update_rule, k, n, l,
                         attack,
@@ -244,7 +248,7 @@ def multiple(
                         key_length=key_length, iv_length=iv_length
                     )
                     tensorflow.summary.trace_export("graph")
-                    # tensorflow.profiler.experimental.stop()
+                    tensorflow.profiler.experimental.stop()
             else:
                 training_time, sync_score, loss = run(
                     update_rule, k, n, l,

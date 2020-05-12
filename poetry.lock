@@ -383,27 +383,6 @@ six = "*"
 
 [[package]]
 category = "main"
-description = "The OpenAI Gym: A toolkit for developing and comparing your reinforcement learning agents."
-name = "gym"
-optional = false
-python-versions = ">=3.5"
-version = "0.17.2"
-
-[package.dependencies]
-cloudpickle = ">=1.2.0,<1.4.0"
-numpy = ">=1.10.4"
-pyglet = ">=1.4.0,<=1.5.0"
-scipy = "*"
-
-[package.extras]
-all = ["atari_py (>=0.2.0,<0.3.0)", "pillow", "opencv-python", "box2d-py (>=2.3.5,<2.4.0)", "mujoco_py (>=1.50,<2.0)", "imageio", "mujoco_py (>=1.50,<2.0)", "imageio"]
-atari = ["atari_py (>=0.2.0,<0.3.0)", "pillow", "opencv-python"]
-box2d = ["box2d-py (>=2.3.5,<2.4.0)"]
-mujoco = ["mujoco_py (>=1.50,<2.0)", "imageio"]
-robotics = ["mujoco_py (>=1.50,<2.0)", "imageio"]
-
-[[package]]
-category = "main"
 description = "Read and write HDF5 files from Python"
 name = "h5py"
 optional = false
@@ -768,17 +747,6 @@ version = "0.2.8"
 
 [package.dependencies]
 pyasn1 = ">=0.4.6,<0.5.0"
-
-[[package]]
-category = "main"
-description = "Cross-platform windowing and multimedia library"
-name = "pyglet"
-optional = false
-python-versions = "*"
-version = "1.5.0"
-
-[package.dependencies]
-future = "*"
 
 [[package]]
 category = "main"
@@ -1338,7 +1306,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "16962c88bddc902c45a9c92f6ffef7fd7565bf4bca1aba7086ac34e9f99843fa"
+content-hash = "e31c16c8cd16a202f824eafcd029ea1b3e6ad8066f14b3f2c46106f83350c562"
 python-versions = "^3.8.2"
 
 [metadata.files]
@@ -1543,9 +1511,6 @@ grpcio = [
 gviz-api = [
     {file = "gviz_api-1.9.0-py2.py3-none-any.whl", hash = "sha256:4f1edcc54443e67c5699c6962ce9bb8bb9289551e918db6f6f8ed74b53294ff9"},
     {file = "gviz_api-1.9.0.tar.gz", hash = "sha256:43d13ccc21834d0501b33a291ef3265e933dbb4bbdca3d34b1ed0a048c0ef640"},
-]
-gym = [
-    {file = "gym-0.17.2.tar.gz", hash = "sha256:bb495aa56995b01274a2213423bf5ba05b8f4fd51c6dc61e9d4abddd1189718e"},
 ]
 h5py = [
     {file = "h5py-2.10.0-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:ecf4d0b56ee394a0984de15bceeb97cbe1fe485f1ac205121293fc44dcf3f31f"},
@@ -1845,10 +1810,6 @@ pyasn1-modules = [
     {file = "pyasn1_modules-0.2.8-py3.5.egg", hash = "sha256:426edb7a5e8879f1ec54a1864f16b882c2837bfd06eee62f2c982315ee2473ed"},
     {file = "pyasn1_modules-0.2.8-py3.6.egg", hash = "sha256:cbac4bc38d117f2a49aeedec4407d23e8866ea4ac27ff2cf7fb3e5b570df19e0"},
     {file = "pyasn1_modules-0.2.8-py3.7.egg", hash = "sha256:c29a5e5cc7a3f05926aff34e097e84f8589cd790ce0ed41b67aed6857b26aafd"},
-]
-pyglet = [
-    {file = "pyglet-1.5.0-py2.py3-none-any.whl", hash = "sha256:a42f599ebd0dc8113563041c402ae09be05cdcbc643bb1183785141ba3c3304e"},
-    {file = "pyglet-1.5.0.zip", hash = "sha256:6ea918985feddfa9bf0fcc01ffe9ff5849e7b6e832d9b2e03b9d2a36369cb6ee"},
 ]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},

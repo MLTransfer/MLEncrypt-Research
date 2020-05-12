@@ -305,7 +305,7 @@ def hparams(method, tensorboard):
     # key-exchange protocol." (Ruttor, 2006)
 
     update_rules = [
-        'random-same', 'random-different',
+        'random-same',  # 'random-different',
         'hebbian', 'anti_hebbian', 'random_walk'
     ]
     K_bounds = {'min': 4, 'max': 8}
@@ -545,7 +545,10 @@ def hparams(method, tensorboard):
         config={
             "monitor": True,
             "env_config": {
-                "wandb": {"project": "mlencrypt-research", "monitor_gym": True}
+                "wandb": {
+                    "project": "mlencrypt-research",
+                    "sync_tensorboard": True,
+                },
             },
         },
     )

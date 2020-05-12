@@ -299,11 +299,12 @@ def run(
     key_length=256, iv_length=128
 ):
     tf.print(
-        "\n\n\n"
-        f"Creating machines: K={K}, N={N}, L={L}, "
-        f"update-rule={update_rule}, "
-        f"attack={attack}",
+        "\n\n\n",
+        "Creating machines: K=", K, "N=", N, "L=", L, ", ",
+        "update-rule=", update_rule, ", ",
+        "attack=", attack,
         "\n",
+        sep='',
         name='log-run-initialization'
     )
     Alice = TPM('Alice', K, N, L, initial_weights['Alice'])

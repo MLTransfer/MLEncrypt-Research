@@ -193,33 +193,25 @@ class TPM(tf.Module):
                 'anti_hebbian', or 'random_walk'.
         """
         if tf.math.equal(self.tau, tau2):
-            if isinstance(update_rule, str):
-                is_hebbian = update_rule == 'hebbian'
-                is_anti_hebbian = update_rule == 'anti_hebbian'
-                is_random_walk = update_rule == 'random_walk'
-            elif isinstance(update_rule, tf.Tensor):
-                # is_hebbian = tf.math.equal(update_rule, 'hebbian')
-                # is_anti_hebbian = tf.math.equal(update_rule, 'anti_hebbian')
-                # is_random_walk = tf.math.equal(update_rule, 'random_walk')
-                pass
-            else:
-                # TODO: raise an appropriate error/exception
-                pass
-            if is_hebbian or tf.math.equal(update_rule, 'hebbian'):
+            if update_rule == "hebbian":
                 hebbian(self.w, self.X, self.sigma, self.tau, tau2, self.L)
-            elif is_anti_hebbian or tf.math.equal(update_rule, 'anti_hebbian'):
+            elif update_rule == 'anti_hebbian':
                 anti_hebbian(self.w, self.X, self.sigma,
                              self.tau, tau2, self.L)
-            elif is_random_walk or tf.math.equal(update_rule, 'random_walk'):
+            elif update_rule == 'random_walk':
                 random_walk(self.w, self.X, self.sigma, self.tau, tau2, self.L)
             else:
-                raise ValueError(
-                    f"'{update_rule}' is an invalid update rule. "
-                    + "Valid update rules are: "
-                    + "'hebbian', "
-                    + "'anti_hebbian' and "
-                    + "'random_walk'."
-                )
+                if isinstance(update_rule, tf.Tensor):
+                    # TF AutoGraph is tracing
+                    pass
+                else:
+                    raise ValueError(
+                        f"'{update_rule}' is an invalid update rule. "
+                        "Valid update rules are: "
+                        "'hebbian', "
+                        "'anti_hebbian' and "
+                        "'random_walk'."
+                    )
             if environ["MLENCRYPT_TB"] == 'TRUE':
                 with tf.name_scope(self.name):
                     tb_summary('sigma', self.sigma)

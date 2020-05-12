@@ -529,12 +529,25 @@ def hparams(method, tensorboard):
         metric="avg_loss",
         mode="min"
     )
+    from wandb.ray import WandbLogger
     analysis = tune.run(
         trainable,
         search_alg=algo,
         scheduler=scheduler,
         # num_samples=100,
         num_samples=10,
+        loggers=[
+            tune.logger.JsonLogger,
+            tune.logger.CSVLogger,
+            tune.logger.TBXLogger,
+            WandbLogger
+        ],
+        config={
+            "monitor": True,
+            "env_config": {
+                "wandb": {"project": "mlencrypt-research", "monitor_gym": True}
+            },
+        },
     )
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 

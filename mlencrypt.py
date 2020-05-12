@@ -153,7 +153,7 @@ def select_random_from_list(input_list, op_name=None):
         dtype=tf.int32,
         name=op_name
     )
-    return tf.gather(input_list, index)
+    return input_list[index]
 
 
 # @tf.function(experimental_compile=True)
@@ -169,32 +169,13 @@ def select_random_from_list(input_list, op_name=None):
 )
 def iterate(
     X,
-    Alice, Bob, Eve, update_rule,
+    Alice, Bob, Eve,
+    update_rule_A, update_rule_B, update_rule_E,
     nb_updates, nb_eve_updates,
     score, score_eve,
     key_length, iv_length
 ):
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
-
-    if update_rule == 'random-different':
-        update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
-        update_rule_A = select_random_from_list(
-            update_rules,
-            op_name='iteration-ur-A'
-        )
-        update_rule_B = select_random_from_list(
-            update_rules,
-            op_name='iteration-ur-B'
-        )
-        # update_rule_E = select_random_from_list(
-        #     update_rules,
-        #     op_name='iteration-ur-E'
-        # )
-        update_rule_E = update_rule_A
-    else:
-        update_rule_A = update_rule
-        update_rule_B = update_rule
-        update_rule_E = update_rule
 
     log_tb = tf.math.equal(
         tf.constant(environ["MLENCRYPT_TB"], name='setting-hparams'),
@@ -281,7 +262,8 @@ def iterate(
         sync_score(Bob, Eve)
 
     tf.print(
-        "\rUpdate rule = ", update_rule, " / "
+        "\rUpdate rule = ", (update_rule_A, update_rule_B,
+                             update_rule_E), " / "
         "A-B Synchronization = ", score, "% / ",
         "A-E Synchronization = ", score_eve, "% / ",
         nb_updates, " Updates (Alice) / ",
@@ -300,7 +282,7 @@ def run(
 ):
     tf.print(
         "\n\n\n",
-        "Creating machines: K=", K, "N=", N, "L=", L, ", ",
+        "Creating machines: K=", K, ", N=", N, ", L=", L, ", ",
         "update-rule=", update_rule, ", ",
         "attack=", attack,
         "\n",
@@ -364,19 +346,45 @@ def run(
             name='input'
         )
 
-        update_rules = ['hebbian', 'anti_hebbian', 'random_walk']
+        update_rules = tf.constant(['hebbian', 'anti_hebbian', 'random_walk'])
 
         if update_rule == 'random-same':
             # use tf.random so that the same update rule is used for each
             # iteration across attacks
 
-            current_update_rule = select_random_from_list(
-                update_rules, 'iteration-ur-index')
+            current_update_rule = tf.constant(select_random_from_list(
+                update_rules,
+                op_name='iteration-ur-A-B-E'
+            ))
+            update_rule_A = current_update_rule
+            update_rule_B = current_update_rule
+            update_rule_E = current_update_rule
+        elif update_rule == 'random-different':
+            update_rule_A = tf.constant(select_random_from_list(
+                update_rules,
+                op_name='iteration-ur-A'
+            ))
+            update_rule_B = tf.constant(select_random_from_list(
+                update_rules,
+                op_name='iteration-ur-B'
+            ))
+            # update_rule_E = tf.constant(select_random_from_list(
+            #     update_rules,
+            #     op_name='iteration-ur-E'
+            # ))
+            update_rule_E = update_rule_A
+        elif update_rule in update_rules:
+            current_update_rule = tf.constant(update_rule)
+            update_rule_A = current_update_rule
+            update_rule_B = current_update_rule
+            update_rule_E = current_update_rule
         else:
-            current_update_rule = update_rule
+            # TODO: raise an appropriate error/exception
+            pass
         iterate(
             X,
-            Alice, Bob, Eve, current_update_rule,
+            Alice, Bob, Eve,
+            update_rule_A, update_rule_B, update_rule_E,
             nb_updates, nb_eve_updates,
             score, score_eve,
             key_length, iv_length

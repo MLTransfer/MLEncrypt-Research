@@ -265,7 +265,7 @@ def multiple(
 
 @cli.command(name='hparams')
 @click.argument(
-    'method',
+    'algorithm',
     type=click.Choice(
         [
             'hyperopt',
@@ -274,6 +274,20 @@ def multiple(
             'skopt',
             'dragonfly',
             'bohb',
+            'zoopt',
+        ],
+        case_sensitive=False
+    )
+)
+@click.argument(
+    'scheduler',
+    type=click.Choice(
+        [
+            'pbt',
+            'ahb',
+            'hb',
+            'bohb',
+            'smr',
         ],
         case_sensitive=False
     )
@@ -281,14 +295,14 @@ def multiple(
 @click.option(
     '-tb', '--tensorboard', is_flag=True
 )
-def hparams(method, tensorboard):
+def hparams(algorithm, scheduler, tensorboard):
     from glob import glob
 
     import tensorflow.summary
     from tensorflow import random as tfrandom, int64 as tfint64
     from ray import init as init_ray
     from ray import tune
-    from ray.tune.schedulers import AsyncHyperBandScheduler
+    from wandb.ray import WandbLogger
 
     # less summaries are logged if MLENCRYPT_TB is TRUE (for efficiency)
     # TODO: use tf.summary.record_if?
@@ -379,7 +393,7 @@ def hparams(method, tensorboard):
             avg_loss=avg_loss.numpy()
         )
 
-    if method == 'hyperopt':
+    if algorithm == 'hyperopt':
         from hyperopt import hp as hyperopt
         from hyperopt.pyll.base import scope
         from ray.tune.suggest.hyperopt import HyperOptSearch
@@ -397,7 +411,7 @@ def hparams(method, tensorboard):
             metric='avg_loss',
             mode='min'
         )
-    elif method == 'bayesopt':
+    elif algorithm == 'bayesopt':
         from ray.tune.suggest.bayesopt import BayesOptSearch
 
         space = {
@@ -417,7 +431,7 @@ def hparams(method, tensorboard):
                 "xi": 0.0
             }
         )
-    elif method == 'nevergrad':
+    elif algorithm == 'nevergrad':
         from ray.tune.suggest.nevergrad import NevergradSearch
         from nevergrad import optimizers
         from nevergrad import p as ngp
@@ -442,7 +456,7 @@ def hparams(method, tensorboard):
             metric="avg_loss",
             mode="min"
         )
-    elif method == 'skopt':
+    elif algorithm == 'skopt':
         from skopt import Optimizer
         from ray.tune.suggest.skopt import SkOptSearch
 
@@ -458,7 +472,7 @@ def hparams(method, tensorboard):
             metric="avg_loss",
             mode="min"
         )
-    elif method == 'dragonfly':
+    elif algorithm == 'dragonfly':
         # TODO: doesn't work
         from ray.tune.suggest.dragonfly import DragonflySearch
         from dragonfly.exd.experiment_caller import EuclideanFunctionCaller
@@ -502,12 +516,9 @@ def hparams(method, tensorboard):
             None, domain_config.domain.list_of_domains[0])
         optimizer = EuclideanGPBandit(func_caller, ask_tell_mode=True)
         algo = DragonflySearch(optimizer, metric="avg_loss", mode="min")
-    elif method == 'bohb':
+    elif algorithm == 'bohb':
         from ConfigSpace import ConfigurationSpace
         from ConfigSpace import hyperparameters as CSH
-        # HyperBandForBOHB isn't used in this elif block but will be used for
-        # the scheduler:
-        from ray.tune.schedulers.hb_bohb import HyperBandForBOHB
         from ray.tune.suggest.bohb import TuneBOHB
 
         config_space = ConfigurationSpace()
@@ -520,20 +531,69 @@ def hparams(method, tensorboard):
         config_space.add_hyperparameter(CSH.UniformIntegerHyperparameter(
             name='L', lower=L_bounds['min'], upper=L_bounds['max']))
         algo = TuneBOHB(config_space, metric="avg_loss", mode="min")
+    elif algorithm == 'zoopt':
+        from ray.tune.suggest.zoopt import ZOOptSearch
+        from zoopt import ValueType
 
+        space = {
+            # "update_rule": (ValueType.DISCRETE, update_rules, False),
+            "update_rule": (ValueType.DISCRETE, range(0, len(update_rules)), False),
+            "K": (
+                ValueType.DISCRETE,
+                range(K_bounds['min'], K_bounds['max'] + 1),
+                True
+            ),
+            "N": (
+                ValueType.DISCRETE,
+                range(N_bounds['min'], N_bounds['max'] + 1),
+                True
+            ),
+            "L": (
+                ValueType.DISCRETE,
+                range(L_bounds['min'], L_bounds['max'] + 1),
+                True
+            ),
+        }
+        # TODO: change budget to a large value
+        algo = ZOOptSearch(
+            budget=10,
+            dim_dict=space,
+            metric="avg_loss",
+            mode="min"
+        )
+
+    # TODO: use more appropriate arguments for schedulers:
+    # https://docs.ray.io/en/master/tune/api_docs/schedulers.html
+    if scheduler == 'pbt':
+        from ray.tune.schedulers import PopulationBasedTraining
+        from random import randint
+        sched = PopulationBasedTraining(
+            metric="avg_loss",
+            mode="min",
+            hyperparam_mutations={
+                "update_rule": update_rules,
+                "K": lambda: randint(K_bounds['min'], K_bounds['max']),
+                "N": lambda: randint(N_bounds['min'], N_bounds['max']),
+                "L": lambda: randint(L_bounds['min'], L_bounds['max']),
+            }
+        )
+    elif scheduler == 'ahb':
+        from ray.tune.schedulers import AsyncHyperBandScheduler
+        sched = AsyncHyperBandScheduler(metric="avg_loss", mode="min")
+    elif scheduler == 'hb':
+        from ray.tune.schedulers import HyperBandScheduler
+        sched = HyperBandScheduler(metric="avg_loss", mode="min")
+    elif algorithm == 'bohb' or scheduler == 'bohb':
+        from ray.tune.schedulers import HyperBandForBOHB
+        sched = HyperBandForBOHB(metric="avg_loss", mode="min")
+    elif scheduler == 'msr':
+        from ray.tune.schedulers import MedianStoppingRule
+        sched = MedianStoppingRule(metric="avg_loss", mode="min")
     init_ray()
-    scheduler = HyperBandForBOHB(
-        metric="avg_loss",
-        mode="min"
-    ) if method == 'bohb' else AsyncHyperBandScheduler(
-        metric="avg_loss",
-        mode="min"
-    )
-    from wandb.ray import WandbLogger
     analysis = tune.run(
         trainable,
         search_alg=algo,
-        scheduler=scheduler,
+        scheduler=sched,
         # num_samples=100,
         num_samples=10,
         loggers=[

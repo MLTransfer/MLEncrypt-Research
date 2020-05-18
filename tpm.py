@@ -21,13 +21,13 @@ def tb_summary(name, data):
             tf.summary.scalar(
                 'mean', tf.reduce_mean(data))
             tf.summary.scalar(
-                'stddev', tf.math.reduce_std(tf.cast(data, tf.float64)))
+                'stddev', tf.math.reduce_std(tf.cast(data, tf.float16)))
             tf.summary.scalar(
                 'max', tf.reduce_max(data))
             tf.summary.scalar(
                 'min', tf.reduce_min(data))
             tf.summary.scalar(
-                'softmax', tf.reduce_logsumexp(tf.cast(data, tf.float64)))
+                'softmax', tf.reduce_logsumexp(tf.cast(data, tf.float16)))
         tf.summary.histogram('histogram', data)
 
 
@@ -54,7 +54,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
 def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
     scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
     with tf.name_scope(scope if scope else scope_name) as scope:
-        data_float = tf.cast(data, tf.float64)
+        data_float = tf.cast(data, tf.float32)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
         data_range = max - min + 1
@@ -385,8 +385,8 @@ class GeometricTPM(TPM):
         """
         wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.w), axis=1)
         original = tf.math.sign(wx)
-        h_i = tf.math.divide(tf.cast(wx, tf.float64),
-                             tf.math.sqrt(tf.cast(self.N, tf.float64)))
+        h_i = tf.math.divide(tf.cast(wx, tf.float16),
+                             tf.math.sqrt(tf.cast(self.N, tf.float16)))
         min = tf.math.argmin(tf.math.abs(h_i))  # index of min
         self.sigma[min].assign(tf.math.negative(original[min]))
 

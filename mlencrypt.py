@@ -24,10 +24,10 @@ def compute_overlap_matrix(N, L, w1, w2):
     """
     # shape_f = tf.constant([2 * L + 1, 2 * L + 1])
     f = tf.Variable(tf.constant(
-        tf.zeros([2 * L + 1, 2 * L + 1], dtype=tf.float64)))
+        tf.zeros([2 * L + 1, 2 * L + 1], dtype=tf.float16)))
 
     one_over_n = tf.constant(tf.math.divide(
-        1., tf.cast(N, dtype=tf.float64)), dtype=tf.float64)
+        1., tf.cast(N, dtype=tf.float16)), dtype=tf.float16)
     for i in tf.range(N):
         r, c = w1[i] + tf.cast(L, tf.int64), w2[i] + tf.cast(L, tf.int64)
         f[r, c].assign(f[r, c] + one_over_n)
@@ -47,7 +47,7 @@ def compute_overlap_matrix_probabilistic(N, L, w1, w2):
     Returns:
         The overlap matrix of the vectors.
     """
-    f = tf.Variable(tf.zeros([2 * L + 1, 2 * L + 1], tf.float64))
+    f = tf.Variable(tf.zeros([2 * L + 1, 2 * L + 1], tf.float16))
     for i in tf.range(N):
         for j in tf.range(2 * L + 1):
             f[w1[i] + L, j].assign(f[w1[i] + L, j] + w2[i][j])
@@ -62,17 +62,17 @@ def compute_overlap_from_matrix(N, L, f):
         L (int): The depth of the weights.
         f: The overlap matrix.
     """
-    R = tf.Variable(0., dtype=tf.float64)
-    Q1 = tf.Variable(0., dtype=tf.float64)
-    Q2 = tf.Variable(0., dtype=tf.float64)
+    R = tf.Variable(0., dtype=tf.float16)
+    Q1 = tf.Variable(0., dtype=tf.float16)
+    Q2 = tf.Variable(0., dtype=tf.float16)
     for i in tf.range(2 * L + 1):
         for j in tf.range(2 * L + 1):
-            Q1.assign_add(tf.cast(i - L, tf.float64)
-                          * tf.cast(i - L, tf.float64) * f[i, j])
-            Q2.assign_add(tf.cast(j - L, tf.float64)
-                          * tf.cast(j - L, tf.float64) * f[i, j])
-            R.assign_add(tf.cast(i - L, tf.float64)
-                         * tf.cast(j - L, tf.float64) * f[i, j])
+            Q1.assign_add(tf.cast(i - L, tf.float16)
+                          * tf.cast(i - L, tf.float16) * f[i, j])
+            Q2.assign_add(tf.cast(j - L, tf.float16)
+                          * tf.cast(j - L, tf.float16) * f[i, j])
+            R.assign_add(tf.cast(i - L, tf.float16)
+                         * tf.cast(j - L, tf.float16) * f[i, j])
 
     rho = tf.constant(tf.math.divide(
         R, tf.math.sqrt(tf.math.multiply(Q1, Q2))))
@@ -112,9 +112,9 @@ def sync_score(TPM1, TPM2):
             weights1, [-1], name=f'weights-{tpm1_id}-1d')
         weights2_flattened = tf.reshape(
             weights2, [-1], name=f'weights-{tpm2_id}-1d')
-        weights1_float = tf.cast(weights1_flattened, tf.float64,
+        weights1_float = tf.cast(weights1_flattened, tf.float32,
                                  name=f'weights-{tpm1_id}-1d-float')
-        weights2_float = tf.cast(weights2_flattened, tf.float64,
+        weights2_float = tf.cast(weights2_flattened, tf.float32,
                                  name=f'weights-{tpm2_id}-1d-float')
         weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
         weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
@@ -247,10 +247,8 @@ def iterate(
     tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
 
-    score.assign(tf.cast(100. * sync_score(Alice, Bob),
-                         tf.float32), name='calc-sync-A-B')
-    score_eve.assign(tf.cast(100. * sync_score(Alice, Eve),
-                             tf.float32), name='calc-sync-A-E')
+    score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
+    score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
 
     # def calc_and_log_sync_B_E():
     #     sync_score(Bob, Eve)
@@ -305,10 +303,10 @@ def run(
 
     try:
         # synchronization score of Alice and Bob
-        score = tf.Variable(0.0, trainable=False, name='score-A-B')
+        score = tf.Variable(0.0, trainable=False, name='score-A-B', dtype=tf.float32)
 
         # synchronization score of Alice and Eve
-        score_eve = tf.Variable(0.0, trainable=False, name='score-A-E')
+        score_eve = tf.Variable(0.0, trainable=False, name='score-A-E', dtype=tf.float32)
     except ValueError:
         # tf.function-decorated function tried to create variables
         # on non-first call.

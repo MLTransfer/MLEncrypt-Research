@@ -17,17 +17,13 @@ sns.set()
 
 def tb_summary(name, data):
     with tf.name_scope(name):
+        data_float = tf.cast(data, tf.float16)
         with tf.name_scope('summaries'):
-            tf.summary.scalar(
-                'mean', tf.reduce_mean(data))
-            tf.summary.scalar(
-                'stddev', tf.math.reduce_std(tf.cast(data, tf.float16)))
-            tf.summary.scalar(
-                'max', tf.reduce_max(data))
-            tf.summary.scalar(
-                'min', tf.reduce_min(data))
-            tf.summary.scalar(
-                'softmax', tf.reduce_logsumexp(tf.cast(data, tf.float16)))
+            tf.summary.scalar('mean', tf.reduce_mean(data))
+            tf.summary.scalar('stddev', tf.math.reduce_std(data_float))
+            tf.summary.scalar('max', tf.reduce_max(data))
+            tf.summary.scalar('min', tf.reduce_min(data))
+            tf.summary.scalar('softmax', tf.reduce_logsumexp(data_float))
         tf.summary.histogram('histogram', data)
 
 
@@ -225,17 +221,18 @@ class TPM(tf.Module):
 
                     hpaxis = tf.range(1, self.K + 1)
                     ipaxis = tf.range(1, self.N + 1)
-                    # the f'{self.name}/weights/', is a temporary fix for
-                    # weights_1
+                    # weights_scope_name is a temporary fix to prevent the
+                    # scope becoming 'weights_1'
+                    weights_scope_name = f'{self.name}/weights/'
                     weights_scope = tb_heatmap(
-                        f'{self.name}/weights/',
+                        weights_scope_name,
                         self.w,
                         ipaxis,
                         hpaxis,
                         unique=False
                     )
                     tb_boxplot(
-                        f'{self.name}/weights/',
+                        weights_scope_name,
                         self.w,
                         hpaxis,
                         unique=False,

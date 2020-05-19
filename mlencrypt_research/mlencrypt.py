@@ -47,18 +47,14 @@ def sync_score(TPM1, TPM2):
         Returns:
             Cosine similarity tensor.
         """
-        weights1_flattened = tf.reshape(
-            weights1, [-1], name=f'weights-{tpm1_id}-1d')
-        weights2_flattened = tf.reshape(
-            weights2, [-1], name=f'weights-{tpm2_id}-1d')
-        weights1_float = tf.cast(weights1_flattened, score_dtype,
-                                 name=f'weights-{tpm1_id}-1d-float')
-        weights2_float = tf.cast(weights2_flattened, score_dtype,
-                                 name=f'weights-{tpm2_id}-1d-float')
-        weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
-        weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
+        weights1_float = tf.cast(weights1, score_dtype,
+                                 name=f'weights-{tpm1_id}-float')
+        weights2_float = tf.cast(weights2, score_dtype,
+                                 name=f'weights-{tpm2_id}-float')
+        weights1_norm = tf.math.l2_normalize(weights1_float)
+        weights2_norm = tf.math.l2_normalize(weights2_float)
         # cos_sim can be from -1 to 1, inclusive:
-        cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm, axis=-1)
+        cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
         return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
     rho = cosine_similarity(TPM1.w, TPM2.w)
 

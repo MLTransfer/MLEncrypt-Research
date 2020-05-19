@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from tpm import TPM
-from tpm import tb_summary, tb_heatmap, tb_boxplot
+from mlencrypt_research.tpm import TPM
+from mlencrypt_research.tpm import tb_summary, tb_heatmap, tb_boxplot
 
 from os import environ
 from time import perf_counter
@@ -10,6 +10,10 @@ import tensorflow as tf
 from math import pi
 
 
+@tf.function(
+    experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+    experimental_relax_shapes=True,
+)
 def sync_score(TPM1, TPM2):
     """
     Args:
@@ -19,6 +23,7 @@ def sync_score(TPM1, TPM2):
         The synchronization score between TPM1 and TPM2.
     """
     tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
+
     # adapted from:
     # https://github.com/tensorflow/tensorflow/blob/e6da7ff3b082dfff2188b242847b620f1fe79426/tensorflow/python/keras/losses.py#L1674-L1706
     # TODO: am I using experimental_implements correctly?
@@ -49,7 +54,7 @@ def sync_score(TPM1, TPM2):
                                  name=f'weights-{tpm2_id}-1d-float')
         weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
         weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
-        # cos_sim can be from -1 to 1, inclusive
+        # cos_sim can be from -1 to 1, inclusive:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm, axis=-1)
         return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
     rho = cosine_similarity(TPM1.w, TPM2.w)
@@ -75,6 +80,15 @@ def sync_score(TPM1, TPM2):
     return rho
 
 
+@tf.function(
+    experimental_autograph_options=(
+        tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS,
+        tf.autograph.experimental.Feature.ASSERT_STATEMENTS,
+        tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS,
+        tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
+    ),
+    experimental_relax_shapes=True,
+)
 def select_random_from_list(input_list, op_name=None):
     # see this gist for how to select a random value from a list:
     # https://gist.github.com/sumanthratna/b9b57134bb76c9fc62b73553728ca896
@@ -181,14 +195,11 @@ def iterate(
     score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
     score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
 
-    # def calc_and_log_sync_B_E():
-    #     sync_score(Bob, Eve)
-    # # log adversary score for Bob's weights
-    # tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
-    #         false_fn=lambda: None, name='calc-sync-B-E')
-    if environ["MLENCRYPT_TB"] == 'TRUE':
-        # log adversary score for Bob's weights
+    def calc_and_log_sync_B_E():
         sync_score(Bob, Eve)
+    # log adversary score for Bob's weights
+    tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
+            false_fn=lambda: None, name='calc-sync-B-E')
 
     tf.print(
         "\rUpdate rule = ", (update_rule_A, update_rule_B,
@@ -222,7 +233,8 @@ def run(
 
     Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
-    tpm_mod = import_module('tpm')  # TODO: don't reimport entire file?
+    # TODO: don't reimport entire file:
+    tpm_mod = import_module('mlencrypt_research.tpm')
     if attack == 'probabilistic':
         Eve_class_name = 'ProbabilisticTPM'
     elif attack == 'geometric':
@@ -234,10 +246,12 @@ def run(
 
     try:
         # synchronization score of Alice and Bob
-        score = tf.Variable(0.0, trainable=False, name='score-A-B', dtype=tf.float32)
+        score = tf.Variable(0.0, trainable=False,
+                            name='score-A-B', dtype=tf.float32)
 
         # synchronization score of Alice and Eve
-        score_eve = tf.Variable(0.0, trainable=False, name='score-A-E', dtype=tf.float32)
+        score_eve = tf.Variable(0.0, trainable=False,
+                                name='score-A-E', dtype=tf.float32)
     except ValueError:
         # tf.function-decorated function tried to create variables
         # on non-first call.
@@ -324,15 +338,6 @@ def run(
     weights_A_B_equal = tf.reduce_all(tf.math.equal(
         Alice.w, Bob.w, name='weights-A-B-equal-elementwise'),
         name='weights-A-B-equal')
-    # tf.while_loop(
-    #     cond=lambda: score < 100. and not weights_A_B_equal,
-    #     body=train_step,
-    #     loop_vars=[],
-    #     # since train_step doesn't return the same value for each call:
-    #     parallel_iterations=1,
-    #     swap_memory=True,
-    #     name='train-step'
-    # )
     start_time = perf_counter()
     while score < 100. and not weights_A_B_equal:
         train_step()
@@ -343,16 +348,11 @@ def run(
     loss = (tf.math.log(training_time) + score_eve / 100.) / 2.
     key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
     if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
-        # creates scatterplot (in scalars) dashboard of metric vs steps
+        # creates scatterplots (in scalars dashboard) of metric vs steps
         tf.summary.scalar('training_time', training_time)
         tf.summary.scalar('eve_score', score_eve)
         tf.summary.scalar('loss', loss)
 
-        # do this if hparams is enabled because the keys and IVs haven't been
-        # calculated yet
-        Alice.compute_key(key_length, iv_length)
-        Bob.compute_key(key_length, iv_length)
-        Eve.compute_key(key_length, iv_length)
         tf.print(
             "\n\n",
             "Training time = ", training_time, " seconds.\n",

@@ -1,5 +1,5 @@
 import click
-from mlencrypt import run
+from mlencrypt_research.mlencrypt import run
 
 from os.path import join
 from os import environ
@@ -105,7 +105,7 @@ def cli():
     type=click.Choice([
         'none',
         'geometric',
-        # 'probabilistic',
+        'probabilistic',
     ]),
     default='none',
     show_default=True

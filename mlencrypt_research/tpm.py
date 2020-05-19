@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-from update_rules import hebbian, anti_hebbian, random_walk
+from mlencrypt_research.update_rules.basic import (
+    hebbian,
+    anti_hebbian,
+    random_walk
+)
 
 import hashlib
 from os import environ
@@ -180,6 +184,10 @@ class TPM(tf.Module):
     def __call__(self, X):
         return self.get_output(X)
 
+    @tf.function(
+        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_relax_shapes=True,
+    )
     def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.
 
@@ -198,7 +206,7 @@ class TPM(tf.Module):
                 random_walk(self.w, self.X, self.sigma, self.tau, tau2, self.L)
             else:
                 if isinstance(update_rule, tf.Tensor):
-                    # TF AutoGraph is tracing
+                    # TF AutoGraph is tracing, so don't raise a ValueError
                     pass
                 else:
                     raise ValueError(
@@ -255,6 +263,10 @@ class TPM(tf.Module):
         else:
             return False
 
+    @tf.function(
+        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_relax_shapes=True,
+    )
     def compute_key(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
 
@@ -340,10 +352,16 @@ class ProbabilisticTPM(TPM):
             j (int): Index of the input perceptron distribution to normalize.
         """
         if (j < 0 and i < 0):
-            self.w.assign(tf.map_fn(lambda x: tf.math.reduce_mean(x), self.w))
+            self.w.assign(tf.map_fn(tf.math.reduce_mean, self.w))
         else:
             self.w[i, j].assign(
-                tf.map_fn(lambda x: tf.math.reduce_mean(x), self.w[i, j]))
+                tf.map_fn(tf.math.reduce_mean, self.w[i, j]))
+
+    def index_to_weight(self, index):
+        # indices:    0,   1,   2,   3,   4
+        # L:        [-2,  -1,   0,   1,   2]
+        # pWeights: [.2,  .2,  .2,  .2,  .2]
+        return index - self.L
 
     def get_most_probable_weight(self):
         """

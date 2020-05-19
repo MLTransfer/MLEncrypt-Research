@@ -22,6 +22,9 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
+    score_dtype = tf.float32 if environ["MLENCRYPT_TB"] == 'TRUE' \
+        else tf.float16
+
     tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
 
     # adapted from:
@@ -48,9 +51,9 @@ def sync_score(TPM1, TPM2):
             weights1, [-1], name=f'weights-{tpm1_id}-1d')
         weights2_flattened = tf.reshape(
             weights2, [-1], name=f'weights-{tpm2_id}-1d')
-        weights1_float = tf.cast(weights1_flattened, tf.float32,
+        weights1_float = tf.cast(weights1_flattened, score_dtype,
                                  name=f'weights-{tpm1_id}-1d-float')
-        weights2_float = tf.cast(weights2_flattened, tf.float32,
+        weights2_float = tf.cast(weights2_flattened, score_dtype,
                                  name=f'weights-{tpm2_id}-1d-float')
         weights1_norm = tf.math.l2_normalize(weights1_float, axis=-1)
         weights2_norm = tf.math.l2_normalize(weights2_float, axis=-1)
@@ -239,19 +242,25 @@ def run(
         Eve_class_name = 'ProbabilisticTPM'
     elif attack == 'geometric':
         Eve_class_name = 'GeometricTPM'
-    else:
+    elif attack == 'none':
         Eve_class_name = 'TPM'
+    else:
+        # TODO: better message for ValueError
+        raise ValueError
     Eve_class = getattr(tpm_mod, Eve_class_name)
     Eve = Eve_class('Eve', K, N, L, initial_weights['Eve'])
+
+    score_dtype = tf.float32 if environ["MLENCRYPT_TB"] == 'TRUE' \
+        else tf.float16
 
     try:
         # synchronization score of Alice and Bob
         score = tf.Variable(0.0, trainable=False,
-                            name='score-A-B', dtype=tf.float32)
+                            name='score-A-B', dtype=score_dtype)
 
         # synchronization score of Alice and Eve
         score_eve = tf.Variable(0.0, trainable=False,
-                                name='score-A-E', dtype=tf.float32)
+                                name='score-A-E', dtype=score_dtype)
     except ValueError:
         # tf.function-decorated function tried to create variables
         # on non-first call.
@@ -345,7 +354,9 @@ def run(
     end_time = perf_counter()
     training_time = end_time - start_time
     # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
-    loss = (tf.math.log(training_time) + score_eve / 100.) / 2.
+    loss = (
+        tf.math.log(tf.cast(training_time, score_dtype)) + score_eve / 100.
+    ) / 2.
     key_length, iv_length = tf.constant(key_length), tf.constant(iv_length)
     if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
         # creates scatterplots (in scalars dashboard) of metric vs steps

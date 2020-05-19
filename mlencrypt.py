@@ -171,9 +171,9 @@ def iterate(
             false_fn=lambda: None, name='tb-updates-E')
 
     def compute_and_log_keys_and_ivs():
-        Alice_key, Alice_iv = Alice.makeKey(key_length, iv_length)
-        Bob_key, Bob_iv = Bob.makeKey(key_length, iv_length)
-        Eve_key, Eve_iv = Eve.makeKey(key_length, iv_length)
+        Alice_key, Alice_iv = Alice.compute_key(key_length, iv_length)
+        Bob_key, Bob_iv = Bob.compute_key(key_length, iv_length)
+        Eve_key, Eve_iv = Eve.compute_key(key_length, iv_length)
 
     tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
@@ -350,9 +350,9 @@ def run(
 
         # do this if hparams is enabled because the keys and IVs haven't been
         # calculated yet
-        Alice.makeKey(key_length, iv_length)
-        Bob.makeKey(key_length, iv_length)
-        Eve.makeKey(key_length, iv_length)
+        Alice.compute_key(key_length, iv_length)
+        Bob.compute_key(key_length, iv_length)
+        Eve.compute_key(key_length, iv_length)
         tf.print(
             "\n\n",
             "Training time = ", training_time, " seconds.\n",

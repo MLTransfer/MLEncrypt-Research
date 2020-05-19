@@ -255,7 +255,7 @@ class TPM(tf.Module):
         else:
             return False
 
-    def makeKey(self, key_length, iv_length):
+    def compute_key(self, key_length, iv_length):
         """Creates a key and IV based on the weights of this TPM.
 
         Args:

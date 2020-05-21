@@ -307,7 +307,7 @@ def run(
             update_rule_A = current_update_rule
             update_rule_B = current_update_rule
             update_rule_E = current_update_rule
-        elif update_rule == 'random-different':
+        elif update_rule.startswith('random-different'):
             update_rule_A = tf.constant(select_random_from_list(
                 update_rules,
                 op_name='iteration-ur-A'
@@ -316,11 +316,15 @@ def run(
                 update_rules,
                 op_name='iteration-ur-B'
             ))
-            # update_rule_E = tf.constant(select_random_from_list(
-            #     update_rules,
-            #     op_name='iteration-ur-E'
-            # ))
-            update_rule_E = update_rule_A
+            if update_rule == 'random-different-A-B-E':
+                update_rule_E = tf.constant(select_random_from_list(
+                    update_rules,
+                    op_name='iteration-ur-E'
+                ))
+            elif update_rule == 'random-different-A-B':
+                update_rule_E = update_rule_A
+            else:
+                raise ValueError
         elif update_rule in update_rules:
             current_update_rule = tf.constant(update_rule)
             update_rule_A = current_update_rule

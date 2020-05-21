@@ -83,7 +83,8 @@ def cli():
     '-ur', '--update_rule',
     type=click.Choice([
         'random-same',
-        'random-different',
+        'random-different-A-B-E',
+        'random-different-A-B',
         'hebbian',
         'anti_hebbian',
         'random_walk',

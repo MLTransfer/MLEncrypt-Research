@@ -155,38 +155,20 @@ def iterate(
         nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
-    # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
-    # due to the associative law of boolean multiplication
-    tau_A_B_equal = tf.math.equal(tauA, tauB, name='iteration-tau-A-B-equal')
-    tau_B_E_equal = tf.math.equal(tauB, tauE, name='iteration-tau-B-E-equal')
-    tau_A_B_E_equal = tf.math.logical_and(
-        tau_A_B_equal, tau_B_E_equal, name='iteration-tau-A-B-E-equal')
-    tau_A_E_not_equal = tf.math.not_equal(
-        tauA, tauE, name='iteration-tau-A-E-not-equal')
-    update_E_geometric = tf.math.logical_and(
-        tf.math.logical_and(tau_A_B_equal, tau_A_E_not_equal,
-                            name='iteration-tau-E-not-equal'),
-        tf.math.equal(Eve.type, 'geometric', name='is-E-geometric'),
-        name='iteration-update-E-geometric'
-    )
-    should_update_E = tf.math.logical_or(
-        tau_A_B_E_equal,
-        update_E_geometric,
-        name='iteration-update-E'
-    )
-
     def update_E():
         Eve.update(tauA, update_rule_E)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
-    tf.cond(
-        should_update_E,
-        true_fn=update_E,
-        false_fn=lambda: None,
-        name='iteration-update-E'
-    )
 
-    # if tauA equals tauB and tauB does not tauE
-    # then tauA does not equal tauE
+    # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
+    # due to the associative law of boolean multiplication:
+    if Eve.type == 'basic' and (tauA == tauB and tauB == tauE):
+        update_E()
+    elif Eve.type == 'geometric' and tauA == tauE:
+        # https://www.ki.tu-berlin.de/fileadmin/fg135/publikationen/Ruttor_2007_DNC.pdf#page=2
+        update_E()
+    elif Eve.type == 'probabilistic':
+        Eve.update(tauA, update_rule_E, updated)
+        nb_eve_updates.assign_add(1, name='updates-E-increment')
 
     def log_updates_E():
         tf.summary.scalar('updates-E', data=nb_eve_updates)

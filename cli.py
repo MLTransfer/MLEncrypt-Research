@@ -62,11 +62,7 @@ def cli():
         'dependency_optimization': True,
         'loop_optimization': True,
         'function_optimization': True,
-        # debug_stripper results in:
-        # W tensorflow/core/common_runtime/process_function_library_runtime.cc:697] Ignoring multi-device function optimization failure: Not found: No attr named 'T' in NodeDef:
-        # [[{{node PrintV2}}]]
-        # [[PrintV2]]
-        # 'debug_stripper': True,
+        'debug_stripper': False,
         'disable_model_pruning': False,
         'scoped_allocator_optimization': True,
         'pin_to_host_optimization': True,
@@ -194,7 +190,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     type=click.Choice([
         'none',
         'geometric',
-        # 'probabilistic',
+        'probabilistic',
     ]),
     default='none',
     show_default=True
@@ -359,7 +355,7 @@ def hparams(algorithm, scheduler, tensorboard):
         # for each attack, the TPMs should use the same inputs
         seed = tfrandom.uniform(
             [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
-        for attack in ['none', 'geometric']:
+        for attack in ['none', 'geometric', 'probabilistic']:
             initial_weights = {
                 tpm: weights_tensor_to_variable(weights, tpm)
                 for tpm, weights in initial_weights_tensors.items()
@@ -539,7 +535,6 @@ def hparams(algorithm, scheduler, tensorboard):
         from zoopt import ValueType
 
         space = {
-            # "update_rule": (ValueType.DISCRETE, update_rules, False),
             "update_rule": (
                 ValueType.DISCRETE,
                 range(0, len(update_rules)),

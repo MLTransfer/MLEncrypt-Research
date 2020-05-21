@@ -430,7 +430,8 @@ class ProbabilisticTPM(TPM):
         for i in tf.range(self.K):
             mpW_cols = tf.TensorArray(tf.int32, size=self.N)
             for j in tf.range(self.N):
-                mpW_cols = mpW_cols.write(j, self.index_to_weight(tf.argmax(self.w[i, j])))
+                mpW_cols = mpW_cols.write(
+                    j, self.index_to_weight(tf.argmax(self.w[i, j])))
             mpW_rows = mpW_rows.write(i, mpW_cols.stack())
         self.mpW.assign(mpW_rows.stack())
         return self.mpW
@@ -439,11 +440,17 @@ class ProbabilisticTPM(TPM):
         experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
         experimental_relax_shapes=True,
     )
-    def update(self, tau2, update_rule):
+    def update(self, tau2, update_rule, updated_A_B):
         """
         Args:
             update_rule (str): Must be "monte_carlo" or "hebbian".
         """
+        # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
+        if updated_A_B:
+            # TODO: fix import to use the hebbian from probabilistic, not basic
+            hebbian()
+        # monte_carlo()
+
         self.get_expected_weights()
         self.get_most_probable_weight()
 
@@ -524,11 +531,18 @@ class GeometricTPM(TPM):
         current state.
         """
         wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.w), axis=1)
-        original = tf.math.sign(wx)
         h_i = tf.math.divide(tf.cast(wx, tf.float16),
                              tf.math.sqrt(tf.cast(self.N, tf.float16)))
-        min = tf.math.argmin(tf.math.abs(h_i))  # index of min
-        self.sigma[min].assign(tf.math.negative(original[min]))
+        min = tf.math.argmin(tf.math.abs(h_i))  # index of min of |h|
+        nonzero = tf.where(
+            tf.math.equal(self.sigma, 0, name=f'{self.name[0]}-sigma-zero'),
+            tf.cast(-1, tf.int64, name='negative-1'),
+            self.sigma,
+            name='sigma-no-zeroes'
+        )
+        self.sigma[min].assign(tf.math.negative(nonzero[min]))
+        self.tau = tf.cast(tf.math.sign(
+            tf.math.reduce_prod(self.sigma)), tf.int64)
 
     def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.
@@ -538,5 +552,9 @@ class GeometricTPM(TPM):
             update_rule (str): The update rule, must be 'hebbian',
                 'anti_hebbian', or 'random_walk'.
         """
-        self.update_sigma()
-        TPM.update(self, tau2, update_rule)
+        if super().update(tau2, update_rule):
+            return True
+        else:
+            self.update_sigma()
+            super().update(tau2, update_rule)
+            return False

@@ -170,7 +170,7 @@ class TPM(tf.Module):
         # compute inner activation sigma, [K]
         sigma, nonzero = self.compute_sigma(X)
         # compute output of TPM, binary scalar
-        tau = tf.math.reduce_prod(nonzero)
+        tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int64)
 
         with self.name_scope:
             self.X = X
@@ -338,7 +338,64 @@ class ProbabilisticTPM(TPM):
         super().__init__(name, K, N, L, initial_weights)
         self.type = 'probabilistic'
         self.w = tf.Variable(
-            tf.fill([K, N, 2 * L + 1], 1. / (2 * L + 1)), trainable=True)
+            tf.fill([K, N, 2 * L + 1],
+                    tf.constant(1. / (2 * L + 1), tf.float16)),
+            trainable=True
+        )
+        self.mpW = tf.Variable(
+            tf.zeros([K, N], dtype=tf.int32),
+            # trainable=True
+        )
+        self.eW = tf.Variable(
+            tf.zeros([K, N], dtype=tf.float16),
+            # trainable=True
+        )
+        self.sigma = tf.Variable(
+            tf.zeros([K], dtype=tf.float16),
+            trainable=False,
+            name='sigma'
+        )
+
+    def get_expected_weights(self):
+        def get_expected_weight(dpdf):
+            # TODO: use tf.multiply to element-wise multiply self.w[i, j] and
+            # self.index_to_weight(index), and then use tf.math.reduce_mean
+            eW_ij = tf.constant(0., tf.float16)
+            for k in tf.range(tf.size(dpdf)):
+                eW_ij += dpdf[k] * \
+                    tf.cast(self.index_to_weight(k), tf.float16)
+            return eW_ij
+        eW_rows = tf.TensorArray(tf.float16, size=self.K)
+        for i in tf.range(self.K):
+            eW_cols = tf.TensorArray(tf.float16, size=self.N)
+            for j in tf.range(self.N):
+                eW_cols = eW_cols.write(j, get_expected_weight(self.w[i, j]))
+            eW_rows = eW_rows.write(i, eW_cols.stack())
+        self.eW.assign(eW_rows.stack())
+        return self.eW
+
+    def compute_sigma(self, X):
+        """
+        Args:
+            X: A random vector which is the input for TPM.
+        Returns:
+            A tuple of the vector of the outputs of each hidden perceptron and
+            the vector with all 0s replaced with -1s. For example:
+
+            ([-1, 0, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
+
+            Each vector has dimension [K].
+        """
+        original = tf.math.sign(tf.math.reduce_sum(
+            tf.math.multiply(tf.cast(X, tf.float16), self.eW), axis=1))
+        id = self.name[0]
+        nonzero = tf.where(
+            tf.math.equal(original, 0., name=f'{id}-sigma-zero'),
+            tf.cast(-1., tf.float16, name='negative-1'),
+            original,
+            name='sigma-no-zeroes'
+        )
+        return original, nonzero
 
     def normalize_weights(self, i=-1, j=-1):
         """Normalizes probability distributions.
@@ -361,7 +418,7 @@ class ProbabilisticTPM(TPM):
         # indices:    0,   1,   2,   3,   4
         # L:        [-2,  -1,   0,   1,   2]
         # pWeights: [.2,  .2,  .2,  .2,  .2]
-        return index - self.L
+        return tf.cast(index, tf.int32) - self.L
 
     def get_most_probable_weight(self):
         """
@@ -369,20 +426,88 @@ class ProbabilisticTPM(TPM):
             [K, N] matrix with each cell representing the weight which has
             the largest probability of existing in the defender's TPM.
         """
-        mPW = tf.Variable(tf.zeros([self.K, self.N], tf.int64))
-        # TODO: more efficient way to do this?
+        mpW_rows = tf.TensorArray(tf.int32, size=self.K)
         for i in tf.range(self.K):
+            mpW_cols = tf.TensorArray(tf.int32, size=self.N)
             for j in tf.range(self.N):
-                mPW.assign(
-                    tf.map_fn(lambda x: tf.argmax(x) - self.L, self.w[i, j]))
-        return mPW
+                mpW_cols = mpW_cols.write(j, self.index_to_weight(tf.argmax(self.w[i, j])))
+            mpW_rows = mpW_rows.write(i, mpW_cols.stack())
+        self.mpW.assign(mpW_rows.stack())
+        return self.mpW
 
-    def update(self, update_rule):
+    @tf.function(
+        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_relax_shapes=True,
+    )
+    def update(self, tau2, update_rule):
         """
         Args:
             update_rule (str): Must be "monte_carlo" or "hebbian".
         """
-        pass
+        self.get_expected_weights()
+        self.get_most_probable_weight()
+
+    @tf.function(
+        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_relax_shapes=True,
+    )
+    def compute_key(self, key_length, iv_length):
+        """Creates a key and IV based on the weights of this TPM.
+
+        Args:
+            key_length (int): Length of the key.
+                Must be 128, 192, or 256.
+            iv_length (int): Length of the independent variable.
+                Must be a multiple of 4 between 0 and 256, inclusive.
+        Returns:
+            The key and IV based on the TPM's weights.
+        """
+
+        key_weights = tf.constant("")
+        iv_weights = tf.constant("")
+
+        for i in tf.range(self.K):
+            for j in tf.range(self.N):
+                if tf.math.equal(i, j):
+                    iv_weights += tf.strings.as_string(self.mpW[i, j])
+                key_weights += tf.strings.as_string(self.mpW[i, j])
+
+        def convert_to_hex_dig(input, length):
+            return hashlib.sha512(
+                input.numpy().decode('utf-8').encode('utf-8')
+            ).hexdigest()[0:length]
+
+        # TODO: figure out a way to do this without using py_function
+        # py_function is currently needed since we need to get the value from
+        # the tf.Tensor
+        current_key = tf.py_function(
+            convert_to_hex_dig,
+            [key_weights, int(key_length / 4)],
+            Tout=tf.string
+        )
+        current_iv = tf.py_function(
+            convert_to_hex_dig,
+            [iv_weights, int(iv_length / 4)],
+            Tout=tf.string
+        )
+        # if not hasattr(self, 'key'):
+        #     self.key = tf.Variable('', trainable=False, name='key')
+        #     # try:
+        #     #     self.key = tf.Variable('', trainable=False, name='key')
+        #     # except ValueError:
+        #     #     self.key = tf.constant("", name='key')
+        # if not hasattr(self, 'iv'):
+        #     self.iv = tf.Variable('', trainable=False, name='iv')
+        #     # try:
+        #     #     self.iv = tf.Variable('', trainable=False, name='iv')
+        #     # except ValueError:
+        #     #     self.iv = tf.constant("", name='iv')
+        self.key.assign(current_key)
+        self.iv.assign(current_iv)
+        with self.name_scope:
+            tf.summary.text('key', data=current_key)
+            tf.summary.text('independent variable', data=current_iv)
+        return current_key, current_iv
 
 
 class GeometricTPM(TPM):

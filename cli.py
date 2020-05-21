@@ -171,7 +171,8 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     '-ur', '--update_rule',
     type=click.Choice([
         'random-same',
-        'random-different',
+        'random-different-A-B-E',
+        'random-different-A-B',
         'hebbian',
         'anti_hebbian',
         'random_walk',
@@ -320,7 +321,8 @@ def hparams(algorithm, scheduler, tensorboard):
     # key-exchange protocol." (Ruttor, 2006)
 
     update_rules = [
-        'random-same',  # 'random-different',
+        'random-same',
+        # 'random-different-A-B-E', 'random-different-A-B',
         'hebbian', 'anti_hebbian', 'random_walk'
     ]
     K_bounds = {'min': 4, 'max': 8}
@@ -538,7 +540,11 @@ def hparams(algorithm, scheduler, tensorboard):
 
         space = {
             # "update_rule": (ValueType.DISCRETE, update_rules, False),
-            "update_rule": (ValueType.DISCRETE, range(0, len(update_rules)), False),
+            "update_rule": (
+                ValueType.DISCRETE,
+                range(0, len(update_rules)),
+                False
+            ),
             "K": (
                 ValueType.DISCRETE,
                 range(K_bounds['min'], K_bounds['max'] + 1),

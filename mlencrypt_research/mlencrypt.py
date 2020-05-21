@@ -56,7 +56,17 @@ def sync_score(TPM1, TPM2):
         # cos_sim can be from -1 to 1, inclusive:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
         return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
-    rho = cosine_similarity(TPM1.w, TPM2.w)
+
+    weights1 = TPM1.w
+    shape1 = TPM1.w.get_shape().as_list()
+    shape2 = TPM2.w.get_shape().as_list()
+    if shape1 == shape2:
+        weights2 = TPM2.w
+    elif hasattr(TPM2, 'mpW') and len(shape2) == 3:
+        weights2 = TPM2.mpW
+    else:
+        raise ValueError
+    rho = cosine_similarity(weights1, weights2)
 
     # the generalization error, epsilon, is the probability that a repulsive
     # step occurs if two corresponding hidden units have different sigma
@@ -344,9 +354,10 @@ def run(
         tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
     # instead of while, use for until L^4*K*N and break
-    weights_A_B_equal = tf.reduce_all(tf.math.equal(
-        Alice.w, Bob.w, name='weights-A-B-equal-elementwise'),
-        name='weights-A-B-equal')
+    weights_A_B_equal = tf.reduce_all(
+        tf.math.equal(Alice.w, Bob.w, name='weights-A-B-equal-elementwise'),
+        name='weights-A-B-equal'
+    )
     start_time = perf_counter()
     while score < 100. and not weights_A_B_equal:
         train_step()

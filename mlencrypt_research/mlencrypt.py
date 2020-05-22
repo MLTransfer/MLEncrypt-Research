@@ -129,7 +129,7 @@ def iterate(
     score, score_eve,
     key_length, iv_length
 ):
-    tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+    tf.summary.experimental.set_step(nb_updates)
 
     log_tb = tf.math.equal(
         tf.constant(environ["MLENCRYPT_TB"], name='setting-hparams'),
@@ -161,7 +161,7 @@ def iterate(
         and Bob.update(tauA, update_rule_B)
     if updated_A_B:
         nb_updates.assign_add(1, name='updates-A-B-increment')
-    tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+    tf.summary.experimental.set_step(nb_updates)
 
     def update_E():
         Eve.update(tauA, update_rule_E)
@@ -286,9 +286,9 @@ def run(
 
     try:
         nb_updates = tf.Variable(
-            0, name='updates-A-B', trainable=False, dtype=tf.uint16)
+            0, name='updates-A-B', trainable=False, dtype=tf.int64)
         nb_eve_updates = tf.Variable(
-            0, name='updates-E', trainable=False, dtype=tf.uint16)
+            0, name='updates-E', trainable=False, dtype=tf.int64)
     except ValueError:
         # tf.function-decorated function tried to create variables
         # on non-first call.
@@ -351,7 +351,7 @@ def run(
             score, score_eve,
             key_length, iv_length
         )
-        tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
+        tf.summary.experimental.set_step(nb_updates)
 
     # instead of while, use for until L^4*K*N and break
     weights_A_B_equal = tf.reduce_all(

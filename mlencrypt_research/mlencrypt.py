@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from mlencrypt_research.tpm import TPM
-from mlencrypt_research.tpm import tb_summary, tb_heatmap, tb_boxplot
+from tpm import TPM
+from tpm import tb_summary, tb_heatmap, tb_boxplot
 
 from os import environ
 from time import perf_counter
@@ -149,9 +149,9 @@ def iterate(
     tauA = Alice.get_output(X)
     tauB = Bob.get_output(X)
     tauE = Eve.get_output(X)
-    updated = Alice.update(tauB, update_rule_A) \
+    updated_A_B = Alice.update(tauB, update_rule_A) \
         and Bob.update(tauA, update_rule_B)
-    if updated:
+    if updated_A_B:
         nb_updates.assign_add(1, name='updates-A-B-increment')
     tf.summary.experimental.set_step(tf.cast(nb_updates, tf.int64))
 
@@ -159,8 +159,8 @@ def iterate(
         Eve.update(tauA, update_rule_E)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
 
-    if Eve.type == 'basic' and (updated and tauA == tauE):
-        # (updated and tauA == tauE) is the same as
+    if Eve.type == 'basic' and (updated_A_B and tauA == tauE):
+        # (updated_A_B and tauA == tauE) is the same as
         # (tauA == tauB and tauB == tauE); if tauA equals tauB and tauB equals
         # tauE then tauA must equal tauE due to the associative law of boolean
         # multiplication
@@ -172,7 +172,7 @@ def iterate(
         # http://www.ccs.neu.edu/home/riccardo/courses/cs6750-fa09/talks/Lowell-neural-crypto.pdf#page=12
         update_E()
     elif Eve.type == 'probabilistic':
-        Eve.update(tauA, update_rule_E, updated)
+        Eve.update(tauA, update_rule_E, updated_A_B)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
 
     def log_updates_E():
@@ -230,7 +230,7 @@ def run(
     Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
     # TODO: don't reimport entire file:
-    tpm_mod = import_module('mlencrypt_research.tpm')
+    tpm_mod = import_module('tpm')
     if attack == 'probabilistic':
         Eve_class_name = 'ProbabilisticTPM'
     elif attack == 'geometric':

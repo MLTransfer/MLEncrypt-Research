@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import mlencrypt_research.update_rules.basic
-import mlencrypt_research.update_rules.probabilistic
+import update_rules.basic
+import update_rules.probabilistic
 
 import hashlib
 from os import environ
@@ -195,7 +195,7 @@ class TPM(tf.Module):
         """
         if tf.math.equal(self.tau, tau2):
             if update_rule == "hebbian":
-                mlencrypt_research.update_rules.basic.hebbian(
+                update_rules.basic.hebbian(
                     self.w,
                     self.X,
                     self.sigma,
@@ -204,7 +204,7 @@ class TPM(tf.Module):
                     self.L
                 )
             elif update_rule == 'anti_hebbian':
-                mlencrypt_research.update_rules.basic.anti_hebbian(
+                update_rules.basic.anti_hebbian(
                     self.w,
                     self.X,
                     self.sigma,
@@ -213,7 +213,7 @@ class TPM(tf.Module):
                     self.L
                 )
             elif update_rule == 'random_walk':
-                mlencrypt_research.update_rules.basic.random_walk(
+                update_rules.basic.random_walk(
                     self.w,
                     self.X,
                     self.sigma,
@@ -464,8 +464,8 @@ class ProbabilisticTPM(TPM):
         """
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
-            mlencrypt_research.update_rules.probabilistic.hebbian()
-        mlencrypt_research.update_rules.probabilistic.monte_carlo()
+            update_rules.probabilistic.hebbian()
+        update_rules.probabilistic.monte_carlo()
 
         self.get_expected_weights()
         self.get_most_probable_weight()

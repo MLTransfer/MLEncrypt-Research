@@ -34,8 +34,8 @@ def hebbian(W, X, sigma, tau1, tau2, l):
     W.assign_add(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
-        clip_value_min=tf.cast(-l, tf.int64),
-        clip_value_max=tf.cast(l, tf.int64),
+        clip_value_min=tf.cast(-l, tf.int32),
+        clip_value_max=tf.cast(l, tf.int32),
     ))
 
 
@@ -56,8 +56,8 @@ def anti_hebbian(W, X, sigma, tau1, tau2, l):
     W.assign_sub(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
-        clip_value_min=tf.cast(-l, tf.int64),
-        clip_value_max=tf.cast(l, tf.int64),
+        clip_value_min=tf.cast(-l, tf.int32),
+        clip_value_max=tf.cast(l, tf.int32),
     ))
 
 
@@ -77,6 +77,6 @@ def random_walk(W, X, sigma, tau1, tau2, l):
     W.assign_add(W_plus_rows.stack())
     W.assign(tf.clip_by_value(
         W,
-        clip_value_min=tf.cast(-l, tf.int64),
-        clip_value_max=tf.cast(l, tf.int64),
+        clip_value_min=tf.cast(-l, tf.int32),
+        clip_value_max=tf.cast(l, tf.int32),
     ))

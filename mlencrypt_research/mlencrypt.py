@@ -299,7 +299,7 @@ def run(
         # Create random vector, X, with dimensions [K, N] and values {-1, 0, 1}
         X = tf.Variable(
             tf.random.uniform(
-                (K, N), minval=-1, maxval=1 + 1, dtype=tf.int64),
+                (K, N), minval=-1, maxval=1 + 1, dtype=tf.int32),
             trainable=False,
             name='input'
         )

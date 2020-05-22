@@ -11,27 +11,27 @@ from tensorflow import Variable as tfVariable
 def get_initial_weights(K, N, L):
     from tensorflow import (
         random as tfrandom,
-        int64 as tfint64
+        int32 as tfint32
     )
     return {
         'Alice': tfrandom.uniform(
             (K, N),
             minval=-L,
             maxval=L + 1,
-            dtype=tfint64
+            dtype=tfint32
         ),
         'Bob': tfrandom.uniform(
             (K, N),
             minval=-L,
             maxval=L + 1,
-            dtype=tfint64
+            dtype=tfint32
         ),
         # TODO: doesn't work for probabilistic:
         'Eve': tfrandom.uniform(
             (K, N),
             minval=-L,
             maxval=L + 1,
-            dtype=tfint64
+            dtype=tfint32
         )
     }
 

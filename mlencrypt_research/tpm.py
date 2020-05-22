@@ -118,7 +118,7 @@ class TPM(tf.Module):
         super(TPM, self).__init__(name=name)
         self.type = 'basic'
         self.sigma = tf.Variable(
-            tf.zeros([K], dtype=tf.int64),
+            tf.zeros([K], dtype=tf.int32),
             trainable=False,
             name='sigma'
         )
@@ -143,11 +143,11 @@ class TPM(tf.Module):
             Each vector has dimension [K].
         """
         original = tf.math.sign(tf.math.reduce_sum(
-            tf.math.multiply(X, tf.cast(self.w, tf.int64)), axis=1))
+            tf.math.multiply(X, self.w), axis=1))
         id = self.name[0]
         nonzero = tf.where(
             tf.math.equal(original, 0, name=f'{id}-sigma-zero'),
-            tf.cast(-1, tf.int64, name='negative-1'),
+            -1,
             original,
             name='sigma-no-zeroes'
         )
@@ -167,7 +167,7 @@ class TPM(tf.Module):
         # compute inner activation sigma, [K]
         sigma, nonzero = self.compute_sigma(X)
         # compute output of TPM, binary scalar
-        tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int64)
+        tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int32)
 
         with self.name_scope:
             self.X = X
@@ -550,13 +550,13 @@ class GeometricTPM(TPM):
         min = tf.math.argmin(tf.math.abs(h_i))  # index of min of |h|
         nonzero = tf.where(
             tf.math.equal(self.sigma, 0, name=f'{self.name[0]}-sigma-zero'),
-            tf.cast(-1, tf.int64, name='negative-1'),
+            -1,
             self.sigma,
             name='sigma-no-zeroes'
         )
         self.sigma[min].assign(tf.math.negative(nonzero[min]))
         self.tau = tf.cast(tf.math.sign(
-            tf.math.reduce_prod(self.sigma)), tf.int64)
+            tf.math.reduce_prod(self.sigma)), tf.int32)
 
     def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.

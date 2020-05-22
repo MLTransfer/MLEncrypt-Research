@@ -2,24 +2,24 @@
 
 ## Usage
 
-Note: Replace the `single` command with `hparams` if you want to run hyperparameter optimization.
+-   `single`: runs a single instance of neural key exchange
+-   `multiple`: runs many instances of neural key exchange, all with the same configuration (this can be useful for benchmarking)
+-   `hparams`: runs hyperparameter optimization (different instances of neural key exchange will likely have different configurations)
 
 Note: It may appear that enabling JIT compilation results in a slowdown. If you don't want to run with JIT, then don't pass the XLA flags to the run command.
 
 Note: Our script features very verbose logging to TensorBoard. Enable this by passing `-tb` to the run command.
 
-Note: TensorBoard logging does not currently work with XLA. Comment out the image summaries for weights if you want to use XLA with TensorBoard logging.
-
 ### CPU
 
 ```zsh
-TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit" poetry run python cli.py single
+TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit" poetry run python mlencrypt_research/cli.py single
 ```
 
 ### GPU
 
 ```zsh
-TF_XLA_FLAGS=--tf_xla_auto_jit=2 poetry run python cli.py single
+TF_XLA_FLAGS=--tf_xla_auto_jit=2 poetry run python mlencrypt_research/cli.py single
 ```
 
 ## Acknowledgements

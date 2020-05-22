@@ -20,11 +20,11 @@ def tb_summary(name, data):
     with tf.name_scope(name):
         data_float = tf.cast(data, tf.float16)
         with tf.name_scope('summaries'):
-            tf.summary.scalar('mean', tf.reduce_mean(data))
+            tf.summary.scalar('mean', tf.math.reduce_mean(data))
             tf.summary.scalar('stddev', tf.math.reduce_std(data_float))
-            tf.summary.scalar('max', tf.reduce_max(data))
-            tf.summary.scalar('min', tf.reduce_min(data))
-            tf.summary.scalar('softmax', tf.reduce_logsumexp(data_float))
+            tf.summary.scalar('max', tf.math.reduce_max(data))
+            tf.summary.scalar('min', tf.math.reduce_min(data))
+            tf.summary.scalar('softmax', tf.math.reduce_logsumexp(data_float))
         tf.summary.histogram('histogram', data)
 
 
@@ -235,47 +235,45 @@ class TPM(tf.Module):
                     )
             if environ["MLENCRYPT_TB"] == 'TRUE':
                 with tf.name_scope(self.name):
-                    tb_summary('sigma', self.sigma)
-                    tf.summary.histogram('weights', self.w)
+                    try:
+                        with tf.experimental.async_scope():
+                            tb_summary('sigma', self.sigma)
+                            tf.summary.histogram('weights', self.w)
 
-                    # doesn't work with XLA:
-                    # tensorflow.python.framework.errors_impl.InvalidArgumentError:
-                    # Trying to access resource using the wrong type. Expected
-                    # N10tensorflow22SummaryWriterInterfaceE got
-                    # N10tensorflow3VarE
+                            hpaxis = tf.range(1, self.K + 1)
+                            ipaxis = tf.range(1, self.N + 1)
+                            # weights_scope_name is a temporary fix to prevent
+                            # the scope becoming 'weights_1'
+                            weights_scope_name = f'{self.name}/weights/'
+                            weights_scope = tb_heatmap(
+                                weights_scope_name,
+                                self.w,
+                                ipaxis,
+                                hpaxis,
+                                unique=False
+                            )
+                            tb_boxplot(
+                                weights_scope_name,
+                                self.w,
+                                hpaxis,
+                                unique=False,
+                                scope=weights_scope
+                            )
 
-                    hpaxis = tf.range(1, self.K + 1)
-                    ipaxis = tf.range(1, self.N + 1)
-                    # weights_scope_name is a temporary fix to prevent the
-                    # scope becoming 'weights_1'
-                    weights_scope_name = f'{self.name}/weights/'
-                    weights_scope = tb_heatmap(
-                        weights_scope_name,
-                        self.w,
-                        ipaxis,
-                        hpaxis,
-                        unique=False
-                    )
-                    tb_boxplot(
-                        weights_scope_name,
-                        self.w,
-                        hpaxis,
-                        unique=False,
-                        scope=weights_scope
-                    )
-
-                    def log_weights_hperceptron(K, weights):
-                        for i in range(K):
-                            # hperceptron weights aren't logged, see
-                            # https://github.com/tensorflow/tensorflow/issues/38772
-                            with tf.name_scope(f'hperceptron{i + 1}'):
-                                tb_summary('weights', weights[i])
-                    tf.numpy_function(
-                        log_weights_hperceptron,
-                        [self.K, self.w],
-                        [],
-                        name='tb-images-weights'
-                    )
+                            def log_weights_hperceptron(K, weights):
+                                for i in range(K):
+                                    # hperceptron weights aren't logged, see
+                                    # https://github.com/tensorflow/tensorflow/issues/38772
+                                    with tf.name_scope(f'hperceptron{i + 1}'):
+                                        tb_summary('weights', weights[i])
+                            tf.numpy_function(
+                                log_weights_hperceptron,
+                                [self.K, self.w],
+                                [],
+                                name='tb-images-weights'
+                            )
+                    except tf.errors.OutOfRangeError:
+                        tf.experimental.async_clear_error()
             return True
         else:
             return False

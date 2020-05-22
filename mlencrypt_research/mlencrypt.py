@@ -51,8 +51,8 @@ def sync_score(TPM1, TPM2):
                                  name=f'weights-{tpm1_id}-float')
         weights2_float = tf.cast(weights2, score_dtype,
                                  name=f'weights-{tpm2_id}-float')
-        weights1_norm = tf.math.l2_normalize(weights1_float)
-        weights2_norm = tf.math.l2_normalize(weights2_float)
+        weights1_norm = tf.nn.l2_normalize(weights1_float)
+        weights2_norm = tf.nn.l2_normalize(weights2_float)
         # cos_sim can be from -1 to 1, inclusive:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
         return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
@@ -139,16 +139,24 @@ def iterate(
 
     # TODO: use tf.cond
     if environ["MLENCRYPT_TB"] == 'TRUE':
-        tb_summary('inputs', X)
-        K, N = Alice.K, Alice.N
-        hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
-        tb_heatmap('inputs', X, ipaxis, hpaxis)
-        tb_boxplot('inputs', X, hpaxis)
+        try:
+            with tf.experimental.async_scope():
+                tb_summary('inputs', X)
+                K, N = Alice.K, Alice.N
+                hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
+                tb_heatmap('inputs', X, ipaxis, hpaxis)
+                tb_boxplot('inputs', X, hpaxis)
+        except tf.errors.OutOfRangeError:
+            tf.experimental.async_clear_error()
 
     # compute outputs of TPMs
-    tauA = Alice.get_output(X)
-    tauB = Bob.get_output(X)
-    tauE = Eve.get_output(X)
+    try:
+        with tf.experimental.async_scope():
+            tauA = Alice.get_output(X)
+            tauB = Bob.get_output(X)
+            tauE = Eve.get_output(X)
+    except tf.errors.OutOfRangeError:
+        tf.experimental.async_clear_error()
     updated_A_B = Alice.update(tauB, update_rule_A) \
         and Bob.update(tauA, update_rule_B)
     if updated_A_B:
@@ -180,22 +188,27 @@ def iterate(
     tf.cond(log_tb, true_fn=log_updates_E,
             false_fn=lambda: None, name='tb-updates-E')
 
-    def compute_and_log_keys_and_ivs():
-        Alice_key, Alice_iv = Alice.compute_key(key_length, iv_length)
-        Bob_key, Bob_iv = Bob.compute_key(key_length, iv_length)
-        Eve_key, Eve_iv = Eve.compute_key(key_length, iv_length)
+    try:
+        with tf.experimental.async_scope():
+            def compute_and_log_keys_and_ivs():
+                Alice_key, Alice_iv = Alice.compute_key(key_length, iv_length)
+                Bob_key, Bob_iv = Bob.compute_key(key_length, iv_length)
+                Eve_key, Eve_iv = Eve.compute_key(key_length, iv_length)
 
-    tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
-            false_fn=lambda: None, name='tb-keys-ivs')
+            tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
+                    false_fn=lambda: None, name='tb-keys-ivs')
 
-    score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
-    score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
+            score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
+            score_eve.assign(100. * sync_score(Alice, Eve),
+                             name='calc-sync-A-E')
 
-    def calc_and_log_sync_B_E():
-        sync_score(Bob, Eve)
-    # log adversary score for Bob's weights
-    tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
-            false_fn=lambda: None, name='calc-sync-B-E')
+            def calc_and_log_sync_B_E():
+                sync_score(Bob, Eve)
+            # log adversary score for Bob's weights
+            tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
+                    false_fn=lambda: None, name='calc-sync-B-E')
+    except tf.errors.OutOfRangeError:
+        tf.experimental.async_clear_error()
 
     tf.print(
         "Update rule = ", (update_rule_A, update_rule_B,

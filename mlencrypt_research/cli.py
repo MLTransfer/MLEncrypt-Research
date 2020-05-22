@@ -44,7 +44,7 @@ def weights_tensor_to_variable(weights, name):
 def cli():
     from tensorflow import config as tfconfig
 
-    # TODO: use experimental_jit_scope?
+    # TODO: use tf.xla.experimental_jit_scope?
     try:
         use_xla = "--tf_xla_auto_jit=2" in environ["TF_XLA_FLAGS"]
     except KeyError:

@@ -24,6 +24,7 @@ wandb = "^0.8.35"
 zoopt = "^0.4.0"
 
 [tool.poetry.dev-dependencies]
+pytest = "^5.4.2"
 
 [tool.poetry.scripts]
 

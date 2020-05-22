@@ -159,12 +159,17 @@ def iterate(
         Eve.update(tauA, update_rule_E)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
 
-    # if tauA equals tauB and tauB equals tauE then tauA must equal tauE
-    # due to the associative law of boolean multiplication:
-    if Eve.type == 'basic' and (tauA == tauB and tauB == tauE):
+    if Eve.type == 'basic' and (updated and tauA == tauE):
+        # (updated and tauA == tauE) is the same as
+        # (tauA == tauB and tauB == tauE); if tauA equals tauB and tauB equals
+        # tauE then tauA must equal tauE due to the associative law of boolean
+        # multiplication
         update_E()
     elif Eve.type == 'geometric' and tauA == tauE:
+        # this is currently used:
         # https://www.ki.tu-berlin.de/fileadmin/fg135/publikationen/Ruttor_2007_DNC.pdf#page=2
+        # but this suggests an alternative control flow:
+        # http://www.ccs.neu.edu/home/riccardo/courses/cs6750-fa09/talks/Lowell-neural-crypto.pdf#page=12
         update_E()
     elif Eve.type == 'probabilistic':
         Eve.update(tauA, update_rule_E, updated)
@@ -193,8 +198,8 @@ def iterate(
             false_fn=lambda: None, name='calc-sync-B-E')
 
     tf.print(
-        "\rUpdate rule = ", (update_rule_A, update_rule_B,
-                             update_rule_E), " / "
+        "Update rule = ", (update_rule_A, update_rule_B,
+                           update_rule_E), " / "
         "A-B Synchronization = ", score, "% / ",
         "A-E Synchronization = ", score_eve, "% / ",
         nb_updates, " Updates (Alice) / ",

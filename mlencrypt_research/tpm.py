@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-from mlencrypt_research.update_rules.basic import (
-    hebbian,
-    anti_hebbian,
-    random_walk
-)
+import mlencrypt_research.update_rules.basic
+import mlencrypt_research.update_rules.probabilistic
 
 import hashlib
 from os import environ
@@ -198,12 +195,32 @@ class TPM(tf.Module):
         """
         if tf.math.equal(self.tau, tau2):
             if update_rule == "hebbian":
-                hebbian(self.w, self.X, self.sigma, self.tau, tau2, self.L)
+                mlencrypt_research.update_rules.basic.hebbian(
+                    self.w,
+                    self.X,
+                    self.sigma,
+                    self.tau,
+                    tau2,
+                    self.L
+                )
             elif update_rule == 'anti_hebbian':
-                anti_hebbian(self.w, self.X, self.sigma,
-                             self.tau, tau2, self.L)
+                mlencrypt_research.update_rules.basic.anti_hebbian(
+                    self.w,
+                    self.X,
+                    self.sigma,
+                    self.tau,
+                    tau2,
+                    self.L
+                )
             elif update_rule == 'random_walk':
-                random_walk(self.w, self.X, self.sigma, self.tau, tau2, self.L)
+                mlencrypt_research.update_rules.basic.random_walk(
+                    self.w,
+                    self.X,
+                    self.sigma,
+                    self.tau,
+                    tau2,
+                    self.L
+                )
             else:
                 if isinstance(update_rule, tf.Tensor):
                     # TF AutoGraph is tracing, so don't raise a ValueError
@@ -447,9 +464,8 @@ class ProbabilisticTPM(TPM):
         """
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
-            # TODO: fix import to use the hebbian from probabilistic, not basic
-            hebbian()
-        # monte_carlo()
+            mlencrypt_research.update_rules.probabilistic.hebbian()
+        mlencrypt_research.update_rules.probabilistic.monte_carlo()
 
         self.get_expected_weights()
         self.get_most_probable_weight()

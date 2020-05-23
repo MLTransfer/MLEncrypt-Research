@@ -1,5 +1,5 @@
 from click.testing import CliRunner
-from mlencrypt_research import cli  # noqa
+from mlencrypt_research import cli
 
 
 def test_single():

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import update_rules.basic
-import update_rules.probabilistic
+import mlencrypt_research.update_rules.basic
+import mlencrypt_research.update_rules.probabilistic
 
 import hashlib
 from os import environ
@@ -42,8 +42,8 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
     w, h = fig.canvas.get_width_height()
-    pixels = np.fromstring(fig.canvas.tostring_rgb(),
-                           dtype=np.uint8, sep='').reshape(h, w, 3)
+    pixels = np.frombuffer(fig.canvas.tostring_rgb(),
+                           dtype=np.uint8).reshape(h, w, 3)
     plt.close()
     return pixels
 
@@ -83,8 +83,8 @@ def create_boxplot(name, data, xaxis):
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
     w, h = fig.canvas.get_width_height()
-    pixels = np.fromstring(fig.canvas.tostring_rgb(),
-                           dtype=np.uint8, sep='').reshape(h, w, 3)
+    pixels = np.frombuffer(fig.canvas.tostring_rgb(),
+                           dtype=np.uint8).reshape(h, w, 3)
     plt.close()
     return pixels
 
@@ -195,7 +195,7 @@ class TPM(tf.Module):
         """
         if tf.math.equal(self.tau, tau2):
             if update_rule == "hebbian":
-                update_rules.basic.hebbian(
+                mlencrypt_research.update_rules.basic.hebbian(
                     self.w,
                     self.X,
                     self.sigma,
@@ -204,7 +204,7 @@ class TPM(tf.Module):
                     self.L
                 )
             elif update_rule == 'anti_hebbian':
-                update_rules.basic.anti_hebbian(
+                mlencrypt_research.update_rules.basic.anti_hebbian(
                     self.w,
                     self.X,
                     self.sigma,
@@ -213,7 +213,7 @@ class TPM(tf.Module):
                     self.L
                 )
             elif update_rule == 'random_walk':
-                update_rules.basic.random_walk(
+                mlencrypt_research.update_rules.basic.random_walk(
                     self.w,
                     self.X,
                     self.sigma,
@@ -462,8 +462,8 @@ class ProbabilisticTPM(TPM):
         """
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
-            update_rules.probabilistic.hebbian()
-        update_rules.probabilistic.monte_carlo()
+            mlencrypt_research.update_rules.probabilistic.hebbian()
+        mlencrypt_research.update_rules.probabilistic.monte_carlo()
 
         self.get_expected_weights()
         self.get_most_probable_weight()

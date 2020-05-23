@@ -1,5 +1,5 @@
 import click
-from mlencrypt import run
+from mlencrypt_research.mlencrypt import run
 
 from os.path import join
 from os import environ

@@ -97,7 +97,6 @@ def sync_score(TPM1, TPM2):
         tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
     ),
     experimental_relax_shapes=True,
-    experimental_compile=True,
 )
 def select_random_from_list(input_list, op_name=None):
     # see this gist for how to select a random value from a list:

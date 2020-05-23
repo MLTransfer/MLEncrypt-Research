@@ -193,6 +193,11 @@ hpbandster==0.7.4 \
 idna==2.9 \
     --hash=sha256:a068a21ceac8a4d63dbfd964670474107f541babbd2250d61922f029858365fa \
     --hash=sha256:7588d1c14ae4c77d74036e8c22ff447b26d0fde8f007354fd48a7814db15b7cb
+idna-ssl==1.1.0; python_version < "3.7" \
+    --hash=sha256:a933e3bb13da54383f9e8f35dc4f9cb9eb9b3b78c6b36f311254d6d0d92c6c7c
+importlib-metadata==1.6.0; python_version < "3.8" \
+    --hash=sha256:2a688cbaa90e0cc587f1df48bdc97a6eadccdcd9c35fb3f976a09e3b5016d90f \
+    --hash=sha256:34513a8a0c4962bc66d35b359558fd8a5e10cd472d37aec5f66858addef32c1e
 joblib==0.15.1 \
     --hash=sha256:6825784ffda353cc8a1be573118085789e5b5d29401856b35b756645ab5aecb5 \
     --hash=sha256:61e49189c84b3c5d99a969d314853f4d1d263316cc694bec17548ebaa9c47b6e
@@ -636,6 +641,9 @@ yarl==1.4.2 \
     --hash=sha256:6faa19d3824c21bcbfdfce5171e193c8b4ddafdf0ac3f129ccf0cdfcb083e462 \
     --hash=sha256:0ca2f395591bbd85ddd50a82eb1fde9c1066fafe888c5c7cc1d810cf03fd3cc6 \
     --hash=sha256:58cd9c469eced558cd81aa3f484b2924e8897049e06889e8ff2510435b7ef74b
+zipp==3.1.0; python_version < "3.8" \
+    --hash=sha256:aa36550ff0c0b7ef7fa639055d797116ee891440eac1a56f378e2d3179e0320b \
+    --hash=sha256:c599e4d75c98f6798c509911d08a22e6c021d074469042177c8c86fb92eefd96
 zoopt==0.4.0 \
     --hash=sha256:b9f312f9e142f22f4f8dc6c92908c51814932de2420fc76a342e4e17e32ce9cd \
     --hash=sha256:d515f45d5ae8530a610adb3101af7a7fa56b965236c4a8a610093d2db6a9becf

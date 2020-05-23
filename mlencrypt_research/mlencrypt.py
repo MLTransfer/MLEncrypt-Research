@@ -51,15 +51,15 @@ def sync_score(TPM1, TPM2):
                                  name=f'weights-{tpm1_id}-float')
         weights2_float = tf.cast(weights2, score_dtype,
                                  name=f'weights-{tpm2_id}-float')
-        weights1_norm = tf.nn.l2_normalize(weights1_float)
-        weights2_norm = tf.nn.l2_normalize(weights2_float)
-        # cos_sim can be from -1 to 1, inclusive:
+        weights1_norm = tf.math.l2_normalize(weights1_float)
+        weights2_norm = tf.math.l2_normalize(weights2_float)
+        # cos_sim is bound by [-1, 1]:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
-        return -cos_sim / 2. + .5  # bound cos_sim to 0 to 1, inclusive
+        return -cos_sim / 2. + .5  # bound cos_sim to [0, 1]
 
     weights1 = TPM1.w
-    shape1 = TPM1.w.get_shape().as_list()
-    shape2 = TPM2.w.get_shape().as_list()
+    shape1 = TPM1.w.get_shape()
+    shape2 = TPM2.w.get_shape()
     if shape1 == shape2:
         weights2 = TPM2.w
     elif hasattr(TPM2, 'mpW') and len(shape2) == 3:
@@ -97,6 +97,7 @@ def sync_score(TPM1, TPM2):
         tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
     ),
     experimental_relax_shapes=True,
+    experimental_compile=True,
 )
 def select_random_from_list(input_list, op_name=None):
     # see this gist for how to select a random value from a list:
@@ -211,8 +212,7 @@ def iterate(
         tf.experimental.async_clear_error()
 
     tf.print(
-        "Update rule = ", (update_rule_A, update_rule_B,
-                           update_rule_E), " / "
+        "Update rule = ", (update_rule_A, update_rule_B, update_rule_E), " / "
         "A-B Synchronization = ", score, "% / ",
         "A-E Synchronization = ", score_eve, "% / ",
         nb_updates, " Updates (Alice) / ",

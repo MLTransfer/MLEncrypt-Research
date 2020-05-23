@@ -1,0 +1,17 @@
+language:         python
+python:
+- '3.6'
+- '3.7'
+- '3.8'
+- nightly
+jobs:
+  allow_failures:
+  - python:       nightly
+install:
+- python -m pip install --upgrade pip
+- pip install poetry
+# - python -m pip install -r requirements.txt
+script:
+  - poetry build
+  - poetry install
+  - python -m pytest tests/

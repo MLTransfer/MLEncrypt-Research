@@ -14,4 +14,4 @@ install:
 script:
   - poetry build
   - poetry install
-  - python -m pytest tests/
+  - python -m pytest tests --capture=tee-sys

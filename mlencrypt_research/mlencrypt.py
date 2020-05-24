@@ -363,7 +363,7 @@ def run(
         loss = tf.math.accumulate_n([
             tf.math.log(tf.cast(training_time, score_dtype)),
             score_eve / 100.
-        ], shape=[], tensor_dtype=tf.float16) / 2.
+        ], shape=[], tensor_dtype=score_dtype) / 2.
         # ^scalars have shape []
         key_length = tf.constant(key_length)
         iv_length = tf.constant(iv_length)

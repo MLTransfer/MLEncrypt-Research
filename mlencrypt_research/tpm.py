@@ -123,9 +123,9 @@ class TPM(tf.Module):
             name='sigma'
         )
         with self.name_scope:
-            self.K = tf.constant(K, name='K')
-            self.N = tf.constant(N, name='N')
-            self.L = tf.constant(L, name='L')
+            self.K = tf.guarantee_const(tf.constant(K, name='K'))
+            self.N = tf.guarantee_const(tf.constant(N, name='N'))
+            self.L = tf.guarantee_const(tf.constant(L, name='L'))
             self.w = initial_weights
             self.key = tf.constant("", name='key')
             self.iv = tf.constant("", name='iv')
@@ -293,14 +293,14 @@ class TPM(tf.Module):
         Returns:
             The key and IV based on the TPM's weights.
         """
-        key_weights = tf.constant("")
-        iv_weights = tf.constant("")
-
-        for i in tf.range(self.K):
-            for j in tf.range(self.N):
-                if tf.math.equal(i, j):
-                    iv_weights += tf.strings.as_string(self.w[i, j])
-                key_weights += tf.strings.as_string(self.w[i, j])
+        main_diagonal = tf.guarantee_const(
+            tf.range(tf.math.minimum(self.K, self.N))
+        )
+        iv_indices = tf.guarantee_const(
+            tf.stack([main_diagonal, main_diagonal], axis=1)
+        )
+        iv_weights = tf.strings.format("{}", tf.gather_nd(self.w, iv_indices))
+        key_weights = tf.strings.format("{}", self.w)
 
         def convert_to_hex_dig(input, length):
             return hashlib.sha512(
@@ -484,14 +484,15 @@ class ProbabilisticTPM(TPM):
             The key and IV based on the TPM's weights.
         """
 
-        key_weights = tf.constant("")
-        iv_weights = tf.constant("")
-
-        for i in tf.range(self.K):
-            for j in tf.range(self.N):
-                if tf.math.equal(i, j):
-                    iv_weights += tf.strings.as_string(self.mpW[i, j])
-                key_weights += tf.strings.as_string(self.mpW[i, j])
+        main_diagonal = tf.guarantee_const(
+            tf.range(tf.math.minimum(self.K, self.N))
+        )
+        iv_indices = tf.guarantee_const(
+            tf.stack([main_diagonal, main_diagonal], axis=1)
+        )
+        iv_weights = tf.strings.format(
+            "{}", tf.gather_nd(self.mpW, iv_indices))
+        key_weights = tf.strings.format("{}", self.mpW)
 
         def convert_to_hex_dig(input, length):
             return hashlib.sha512(

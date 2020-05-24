@@ -376,6 +376,7 @@ class ProbabilisticTPM(TPM):
             # TODO: use tf.multiply to element-wise multiply self.w[i, j] and
             # self.index_to_weight(index), and then use tf.math.reduce_mean
             eW_ij = tf.constant(0., tf.float16)
+            # tf.size(dpdf) should be 2*L+1
             for k in tf.range(tf.size(dpdf)):
                 eW_ij += dpdf[k] * \
                     tf.cast(self.index_to_weight(k), tf.float16)
@@ -423,6 +424,7 @@ class ProbabilisticTPM(TPM):
             i (int): Index of the hidden perceptron distribution to normalize.
             j (int): Index of the input perceptron distribution to normalize.
         """
+        # TODO: try tf.vectorized_map
         if (j < 0 and i < 0):
             self.w.assign(tf.map_fn(tf.math.reduce_mean, self.w))
         else:
@@ -455,11 +457,7 @@ class ProbabilisticTPM(TPM):
         experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
         experimental_relax_shapes=True,
     )
-    def update(self, tau2, update_rule, updated_A_B):
-        """
-        Args:
-            update_rule (str): Must be "monte_carlo" or "hebbian".
-        """
+    def update(self, tau2, updated_A_B):
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
             mlencrypt_research.update_rules.probabilistic.hebbian()

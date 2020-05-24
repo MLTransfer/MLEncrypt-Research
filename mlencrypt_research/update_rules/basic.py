@@ -17,21 +17,23 @@ def theta(t1, t2):
     return tf.where(tf.math.equal(t1, t2), t1, t2)
 
 
+def indices_from_2d(index_2d, k):
+    return tf.math.floormod(index_2d, k), tf.math.floordiv(index_2d, k)
+
+
 def hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus_rows = tf.TensorArray(W.dtype, size=k)
-    for i in tf.range(k):
-        W_plus_cols = tf.TensorArray(W.dtype, size=n)
-        for j in tf.range(n):
-            W_plus_cols = W_plus_cols.write(
-                j,
-                X[i, j]
-                * tau1
-                * theta(sigma[i], tau1)
-                * theta(tau1, tau2)
-            )
-        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
-    W.assign_add(W_plus_rows.stack())
+    # TODO: benchmark tf.size(W) vs k*n
+    indices_2d = tf.range(tf.size(W))
+
+    def update_perceptron(index_2d):
+        i, j = indices_from_2d(index_2d, k)
+        # assume that anti_hebbian is only called if tau1 equals tau2, so don't
+        # multiply by theta(tau1, tau2):
+        return X[i, j] * tau1 * theta(sigma[i], tau1)
+    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus = tf.reshape(W_plus_vectorized, (k, n))
+    W.assign_add(W_plus)
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int32),
@@ -41,19 +43,17 @@ def hebbian(W, X, sigma, tau1, tau2, l):
 
 def anti_hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus_rows = tf.TensorArray(W.dtype, size=k)
-    for i in tf.range(k):
-        W_plus_cols = tf.TensorArray(W.dtype, size=n)
-        for j in tf.range(n):
-            W_plus_cols = W_plus_cols.write(
-                j,
-                X[i, j]
-                * tau1
-                * theta(sigma[i], tau1)
-                * theta(tau1, tau2)
-            )
-        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
-    W.assign_sub(W_plus_rows.stack())
+    # TODO: benchmark tf.size(W) vs k*n
+    indices_2d = tf.range(tf.size(W))
+
+    def update_perceptron(index_2d):
+        i, j = indices_from_2d(index_2d, k)
+        # assume that anti_hebbian is only called if tau1 equals tau2, so don't
+        # multiply by theta(tau1, tau2):
+        return X[i, j] * tau1 * theta(sigma[i], tau1)
+    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus = tf.reshape(W_plus_vectorized, (k, n))
+    W.assign_sub(W_plus)
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int32),
@@ -63,18 +63,17 @@ def anti_hebbian(W, X, sigma, tau1, tau2, l):
 
 def random_walk(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
-    W_plus_rows = tf.TensorArray(W.dtype, size=k)
-    for i in tf.range(k):
-        W_plus_cols = tf.TensorArray(W.dtype, size=n)
-        for j in tf.range(n):
-            W_plus_cols = W_plus_cols.write(
-                j,
-                X[i, j]
-                * theta(sigma[i], tau1)
-                * theta(tau1, tau2)
-            )
-        W_plus_rows = W_plus_rows.write(i, W_plus_cols.stack())
-    W.assign_add(W_plus_rows.stack())
+    # TODO: benchmark tf.size(W) vs k*n
+    indices_2d = tf.range(tf.size(W))
+
+    def update_perceptron(index_2d):
+        i, j = indices_from_2d(index_2d, k)
+        # assume that anti_hebbian is only called if tau1 equals tau2, so don't
+        # multiply by theta(tau1, tau2):
+        return X[i, j] * theta(sigma[i], tau1)
+    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus = tf.reshape(W_plus_vectorized, (k, n))
+    W.assign_add(W_plus)
     W.assign(tf.clip_by_value(
         W,
         clip_value_min=tf.cast(-l, tf.int32),

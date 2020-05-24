@@ -13,13 +13,13 @@ Note: Our script features very verbose logging to TensorBoard. Enable this by pa
 ### CPU
 
 ```zsh
-TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit" poetry run python mlencrypt_research/cli.py single
+TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit" poetry run mlencrypt-research single
 ```
 
 ### GPU
 
 ```zsh
-TF_XLA_FLAGS=--tf_xla_auto_jit=2 poetry run python mlencrypt_research/cli.py single
+TF_XLA_FLAGS=--tf_xla_auto_jit=2 poetry run mlencrypt-research single
 ```
 
 ## Acknowledgements

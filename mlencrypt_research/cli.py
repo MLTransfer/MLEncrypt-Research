@@ -44,15 +44,8 @@ def weights_tensor_to_variable(weights, name):
 def cli():
     from tensorflow import config as tfconfig
 
-    # TODO: use tf.xla.experimental_jit_scope?
-    try:
-        use_xla = "--tf_xla_auto_jit=2" in environ["TF_XLA_FLAGS"]
-    except KeyError:
-        # KeyError: 'TF_XLA_FLAGS'
-        use_xla = False
-
-    tfconfig.optimizer.set_jit(use_xla)
-    tfconfig.experimental.set_synchronous_execution(True)
+    tfconfig.optimizer.set_jit(True)
+    # tfconfig.experimental.set_synchronous_execution(True)
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
         'constant_folding': True,

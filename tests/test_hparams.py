@@ -7,7 +7,7 @@ def test_hparams():
     with runner.isolated_filesystem():
         result = runner.invoke(
             cli.cli,
-            ['hparams', 'nevergrad', 'ahb', '-s', '2'],
+            ['hparams', 'nevergrad', '-n', '2'],
             catch_exceptions=False
         )
         assert result.exit_code == 0

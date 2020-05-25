@@ -277,10 +277,11 @@ def multiple(
         case_sensitive=False
     )
 )
-@click.argument(
-    'scheduler',
+@click.option(
+    '-s', '--scheduler',
     type=click.Choice(
         [
+            'fifo',
             'pbt',
             'ahb',
             'hb',
@@ -288,10 +289,12 @@ def multiple(
             'smr',
         ],
         case_sensitive=False,
-    )
+    ),
+    default='fifo',
+    show_default=True,
 )
 @click.option(
-    '-s', '--num-samples', default=2, show_default=True, type=int,
+    '-n', '--num-samples', default=2, show_default=True, type=int,
 )
 @click.option(
     '-tb', '--tensorboard', show_default=True, is_flag=True,
@@ -304,6 +307,8 @@ def hparams(algorithm, scheduler, num_samples, tensorboard):
     from ray import init as init_ray
     from ray import tune
     from wandb.ray import WandbLogger
+    from wandb import sweep as wandbsweep
+    from wandb.apis import CommError as wandbCommError
 
     # less summaries are logged if MLENCRYPT_TB is TRUE (for efficiency)
     # TODO: use tf.summary.record_if?
@@ -569,7 +574,9 @@ def hparams(algorithm, scheduler, num_samples, tensorboard):
 
     # TODO: use more appropriate arguments for schedulers:
     # https://docs.ray.io/en/master/tune/api_docs/schedulers.html
-    if scheduler == 'pbt':
+    if scheduler == 'fifo':
+        sched = None
+    elif scheduler == 'pbt':
         from ray.tune.schedulers import PopulationBasedTraining
         from random import randint
         sched = PopulationBasedTraining(
@@ -597,6 +604,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard):
     init_ray()
     analysis = tune.run(
         trainable,
+        name='mlencrypt_research',
         search_alg=algo,
         scheduler=sched,
         num_samples=num_samples,
@@ -616,6 +624,11 @@ def hparams(algorithm, scheduler, num_samples, tensorboard):
             },
         },
     )
+    try:
+        wandbsweep(analysis)
+    except wandbCommError:
+        # see https://docs.wandb.com/sweeps/ray-tune#feature-compatibility
+        pass
     print("Best config: ", analysis.get_best_config(metric="avg_loss"))
 
 

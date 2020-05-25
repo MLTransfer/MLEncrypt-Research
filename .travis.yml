@@ -15,4 +15,5 @@ script:
   - poetry build
   - poetry install
   - wandb off
-  - travis_wait 50 python -m pytest tests --capture=tee-sys
+  # - travis_wait 50 python -m pytest tests --capture=tee-sys
+  - python -m pytest tests --capture=tee-sys

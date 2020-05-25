@@ -68,20 +68,20 @@ def sync_score(TPM1, TPM2):
         raise ValueError
     rho = cosine_similarity(weights1, weights2)
 
-    # the generalization error, epsilon, is the probability that a repulsive
-    # step occurs if two corresponding hidden units have different sigma
-    # (Ruttor, 2006).
-    epsilon = tf.math.multiply(
-        tf.constant(1. / pi, tf.float32, name='reciprocal-pi'),
-        tf.cast(
-            tf.math.acos(rho, name=f'angle-{tpm1_id}-{tpm2_id}'),
-            tf.float32,
-            name=f'angle-{tpm1_id}-{tpm2_id}'
-        ),
-        name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
-    )
-
     if environ["MLENCRYPT_TB"] == 'TRUE':
+        # the generalization error, epsilon, is the probability that a
+        # repulsive step occurs if two corresponding hidden units have
+        # different sigma (Ruttor, 2006).
+        epsilon = tf.math.multiply(
+            tf.constant(1. / pi, tf.float32, name='reciprocal-pi'),
+            tf.cast(
+                tf.math.acos(rho, name=f'angle-{tpm1_id}-{tpm2_id}'),
+                tf.float32,
+                name=f'angle-{tpm1_id}-{tpm2_id}'
+            ),
+            name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
+        )
+
         with tf.name_scope(f'{TPM1.name}-{TPM2.name}'):
             tf.summary.scalar('sync', data=rho)
             tf.summary.scalar('generalization-error', data=epsilon)

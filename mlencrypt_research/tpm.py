@@ -439,20 +439,20 @@ class ProbabilisticTPM(TPM):
         # pWeights: [.2,  .2,  .2,  .2,  .2]
         return tf.cast(index, tf.int32) - self.L
 
-    def get_most_probable_weight(self):
+    def get_most_probable_weights(self):
         """
         Returns:
             [K, N] matrix with each cell representing the weight which has
             the largest probability of existing in the defender's TPM.
         """
-        mpW_rows = tf.TensorArray(tf.int32, size=self.K)
-        for i in tf.range(self.K):
-            mpW_cols = tf.TensorArray(tf.int32, size=self.N)
-            for j in tf.range(self.N):
-                mpW_cols = mpW_cols.write(
-                    j, self.index_to_weight(tf.argmax(self.w[i, j])))
-            mpW_rows = mpW_rows.write(i, mpW_cols.stack())
-        self.mpW.assign(mpW_rows.stack())
+        self.mpW.assign(tf.reshape(
+            tf.map_fn(
+                lambda x: self.index_to_weight(tf.math.argmax(x)),
+                tf.reshape(self.w, (self.K * self.N, 2 * self.L + 1)),
+                dtype=tf.int32,
+            ),
+            (self.K, self.N),
+        ))
         return self.mpW
 
     @tf.function(

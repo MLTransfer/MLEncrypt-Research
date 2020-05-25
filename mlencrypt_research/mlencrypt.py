@@ -365,8 +365,8 @@ def run(
             score_eve / 100.
         ], shape=[], tensor_dtype=score_dtype) / 2.
         #  ^^^^^^^^ scalars have shape []
-        key_length = tf.constant(key_length)
-        iv_length = tf.constant(iv_length)
+        key_length = tf.guarantee_const(key_length)
+        iv_length = tf.guarantee_const(iv_length)
         if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
             # create scatterplots (in scalars dashboard) of metric vs steps
             tf.summary.scalar('training_time', training_time)

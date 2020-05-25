@@ -127,8 +127,8 @@ class TPM(tf.Module):
             self.N = tf.guarantee_const(tf.constant(N, name='N'))
             self.L = tf.guarantee_const(tf.constant(L, name='L'))
             self.w = initial_weights
-            self.key = tf.constant("", name='key')
-            self.iv = tf.constant("", name='iv')
+            self.key = tf.Variable("", name='key')
+            self.iv = tf.Variable("", name='iv')
 
     def compute_sigma(self, X):
         """
@@ -169,7 +169,8 @@ class TPM(tf.Module):
 
         # compute output of TPM, binary scalar:
         tau = tf.math.sign(tf.math.reduce_prod(nonzero))
-        if tau.dtype == tf.float16:
+        # TODO: is the if-statement necessary?
+        if tau.dtype != tf.int32:
             # tau is float16 for ProbabilisticTPM
             tau = tf.cast(tau, tf.int32)
 
@@ -324,18 +325,6 @@ class TPM(tf.Module):
             [iv_weights, int(iv_length / 4)],
             Tout=tf.string
         )
-        # if not hasattr(self, 'key'):
-        #     self.key = tf.Variable('', trainable=False, name='key')
-        #     # try:
-        #     #     self.key = tf.Variable('', trainable=False, name='key')
-        #     # except ValueError:
-        #     #     self.key = tf.constant("", name='key')
-        # if not hasattr(self, 'iv'):
-        #     self.iv = tf.Variable('', trainable=False, name='iv')
-        #     # try:
-        #     #     self.iv = tf.Variable('', trainable=False, name='iv')
-        #     # except ValueError:
-        #     #     self.iv = tf.constant("", name='iv')
         self.key.assign(current_key)
         self.iv.assign(current_iv)
         with self.name_scope:
@@ -357,8 +346,10 @@ class ProbabilisticTPM(TPM):
         super().__init__(name, K, N, L, initial_weights)
         self.type = 'probabilistic'
         self.w = tf.Variable(
-            tf.fill([K, N, 2 * L + 1],
-                    tf.constant(1. / (2 * L + 1), tf.float16)),
+            tf.fill(
+                [K, N, 2 * L + 1],
+                tf.guarantee_const(tf.constant(1. / (2 * L + 1), tf.float16)),
+            ),
             trainable=True
         )
         self.mpW = tf.Variable(

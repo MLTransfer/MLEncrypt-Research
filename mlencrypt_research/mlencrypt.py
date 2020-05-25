@@ -73,8 +73,8 @@ def sync_score(TPM1, TPM2):
         # repulsive step occurs if two corresponding hidden units have
         # different sigma (Ruttor, 2006).
         epsilon = tf.math.multiply(
-            tf.constant(1. / pi, tf.float32, name='reciprocal-pi'),
-            tf.cast(
+            tf.guarantee_const(1. / pi, name='reciprocal-pi'),
+            tf.bitcast(
                 tf.math.acos(rho, name=f'angle-{tpm1_id}-{tpm2_id}'),
                 tf.float32,
                 name=f'angle-{tpm1_id}-{tpm2_id}'
@@ -283,7 +283,6 @@ def run(
         #     # tf.function-decorated function tried to create variables
         #     # on non-first call.
         #     pass
-        tf.summary.experimental.set_step(0)
 
         def train_step():
             # Create random vector, X, with dimensions [K, N] and values

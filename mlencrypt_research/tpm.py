@@ -18,7 +18,7 @@ sns.set()
 
 def tb_summary(name, data):
     with tf.name_scope(name):
-        data_float = tf.cast(data, tf.float16)
+        data_float = tf.bitcast(data, tf.float16)
         with tf.name_scope('summaries'):
             tf.summary.scalar('mean', tf.math.reduce_mean(data))
             tf.summary.scalar('stddev', tf.math.reduce_std(data_float))
@@ -51,7 +51,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
 def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
     scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
     with tf.name_scope(scope if scope else scope_name) as scope:
-        data_float = tf.cast(data, tf.float32)
+        data_float = tf.bitcast(data, tf.float32)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
         data_range = max - min + 1
@@ -409,7 +409,7 @@ class ProbabilisticTPM(TPM):
         id = self.name[0]
         nonzero = tf.where(
             tf.math.equal(original, 0., name=f'{id}-sigma-zero'),
-            tf.cast(-1., tf.float16, name='negative-1'),
+            tf.guarantee_const(tf.cast(-1., tf.float16, name='negative-1')),
             original,
             name='sigma-no-zeroes'
         )
@@ -466,7 +466,7 @@ class ProbabilisticTPM(TPM):
         mlencrypt_research.update_rules.probabilistic.monte_carlo()
 
         self.get_expected_weights()
-        self.get_most_probable_weight()
+        self.get_most_probable_weights()
 
     @tf.function(
         experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
@@ -533,8 +533,6 @@ class ProbabilisticTPM(TPM):
 
 
 class GeometricTPM(TPM):
-    # TODO: it might just be autograph but geometric isn't working,
-    # running an hparams with 1 trial returns the same results for both attacks
     def __init__(self, name, K, N, L, initial_weights):
         super().__init__(name, K, N, L, initial_weights)
         self.type = 'geometric'
@@ -556,7 +554,7 @@ class GeometricTPM(TPM):
             name='sigma-no-zeroes'
         )
         self.sigma[min].assign(tf.math.negative(nonzero[min]))
-        self.tau = tf.cast(tf.math.sign(
+        self.tau = tf.bitcast(tf.math.sign(
             tf.math.reduce_prod(self.sigma)), tf.int32)
 
     def update(self, tau2, update_rule):

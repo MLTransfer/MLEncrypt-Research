@@ -174,7 +174,7 @@ def iterate(
         # http://www.ccs.neu.edu/home/riccardo/courses/cs6750-fa09/talks/Lowell-neural-crypto.pdf#page=12
         update_E()
     elif Eve.type == 'probabilistic':
-        Eve.update(tauA, update_rule_E, updated_A_B)
+        Eve.update(tauA, updated_A_B)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
 
     def log_updates_E():
@@ -249,19 +249,19 @@ def run(
         score_dtype = tf.float32 if environ["MLENCRYPT_TB"] == 'TRUE' \
             else tf.float16
 
-        try:
-            # synchronization score of Alice and Bob
-            score = tf.Variable(0.0, trainable=False,
-                                name='score-A-B', dtype=score_dtype)
+        # try:
+        # synchronization score of Alice and Bob
+        score = tf.Variable(0.0, trainable=False,
+                            name='score-A-B', dtype=score_dtype)
 
-            # synchronization score of Alice and Eve
-            score_eve = tf.Variable(0.0, trainable=False,
-                                    name='score-A-E', dtype=score_dtype)
-        except ValueError:
-            # tf.function-decorated function tried to create variables
-            # on non-first call.
-            score = 0.
-            score_eve = 0.
+        # synchronization score of Alice and Eve
+        score_eve = tf.Variable(0.0, trainable=False,
+                                name='score-A-E', dtype=score_dtype)
+        # except ValueError:
+        #     # tf.function-decorated function tried to create variables
+        #     # on non-first call.
+        #     score = 0.
+        #     score_eve = 0.
 
         # https://www.tensorflow.org/tutorials/customization/performance#zero_iterations
         with Alice.name_scope:
@@ -274,15 +274,15 @@ def run(
             Eve.key = tf.Variable("", trainable=False, name='key')
             Eve.iv = tf.Variable("", trainable=False, name='iv')
 
-        try:
-            nb_updates = tf.Variable(
-                0, name='updates-A-B', trainable=False, dtype=tf.int64)
-            nb_eve_updates = tf.Variable(
-                0, name='updates-E', trainable=False, dtype=tf.int64)
-        except ValueError:
-            # tf.function-decorated function tried to create variables
-            # on non-first call.
-            pass
+        # try:
+        nb_updates = tf.Variable(
+            0, name='updates-A-B', trainable=False, dtype=tf.int64)
+        nb_eve_updates = tf.Variable(
+            0, name='updates-E', trainable=False, dtype=tf.int64)
+        # except ValueError:
+        #     # tf.function-decorated function tried to create variables
+        #     # on non-first call.
+        #     pass
         tf.summary.experimental.set_step(0)
 
         def train_step():
@@ -336,8 +336,8 @@ def run(
                 update_rule_B = current_update_rule
                 update_rule_E = current_update_rule
             else:
-                # TODO: raise an appropriate error/exception
-                pass
+                # TODO: better message for ValueError
+                raise ValueError
             iterate(
                 X,
                 Alice, Bob, Eve,
@@ -365,7 +365,7 @@ def run(
             tf.math.log(tf.cast(training_time, score_dtype)),
             score_eve / 100.
         ], shape=[], tensor_dtype=score_dtype) / 2.
-        # ^scalars have shape []
+        #  ^^^^^^^^ scalars have shape []
         key_length = tf.constant(key_length)
         iv_length = tf.constant(iv_length)
         if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):

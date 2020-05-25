@@ -373,21 +373,23 @@ class ProbabilisticTPM(TPM):
 
     def get_expected_weights(self):
         def get_expected_weight(dpdf):
-            # TODO: use tf.multiply to element-wise multiply self.w[i, j] and
-            # self.index_to_weight(index), and then use tf.math.reduce_mean
-            eW_ij = tf.constant(0., tf.float16)
             # tf.size(dpdf) should be 2*L+1
-            for k in tf.range(tf.size(dpdf)):
-                eW_ij += dpdf[k] * \
-                    tf.cast(self.index_to_weight(k), tf.float16)
+            eW_ij = tf.math.reduce_mean(tf.map_fn(
+                # dpdf[x] gives probability of corresponding weight
+                # self.index_to_weight(x) gives corresponding weight
+                lambda x: dpdf[x] * tf.cast(self.index_to_weight(x),
+                                            tf.float16),
+                tf.range(tf.size(dpdf)),  # indices
+                dtype=tf.float16
+            ))
             return eW_ij
-        eW_rows = tf.TensorArray(tf.float16, size=self.K)
-        for i in tf.range(self.K):
-            eW_cols = tf.TensorArray(tf.float16, size=self.N)
-            for j in tf.range(self.N):
-                eW_cols = eW_cols.write(j, get_expected_weight(self.w[i, j]))
-            eW_rows = eW_rows.write(i, eW_cols.stack())
-        self.eW.assign(eW_rows.stack())
+        self.eW.assign(tf.reshape(
+            tf.map_fn(
+                get_expected_weight,
+                tf.reshape(self.w, (self.K * self.N, 2 * self.L + 1)),
+            ),
+            (self.K, self.N)
+        ))
         return self.eW
 
     def compute_sigma(self, X):

@@ -132,8 +132,8 @@ def iterate(
     tf.summary.experimental.set_step(nb_updates)
 
     log_tb = tf.math.equal(
-        tf.constant(environ["MLENCRYPT_TB"], name='setting-hparams'),
-        tf.constant('TRUE', name='true'),
+        tf.guarantee_const(environ["MLENCRYPT_TB"], name='setting-hparams'),
+        tf.guarantee_const('TRUE', name='true'),
         name='do-not-use-hparams'
     )
 
@@ -294,7 +294,7 @@ def run(
                 name='input'
             )
 
-            tpm_update_rules = tf.constant([
+            tpm_update_rules = tf.guarantee_const([
                 'hebbian',
                 'anti_hebbian',
                 'random_walk'
@@ -330,7 +330,7 @@ def run(
                 else:
                     raise ValueError
             elif update_rule in tpm_update_rules:
-                current_update_rule = tf.constant(update_rule)
+                current_update_rule = tf.guarantee_const(update_rule)
                 update_rule_A = current_update_rule
                 update_rule_B = current_update_rule
                 update_rule_E = current_update_rule

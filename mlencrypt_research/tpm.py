@@ -507,18 +507,6 @@ class ProbabilisticTPM(TPM):
             [iv_weights, int(iv_length / 4)],
             Tout=tf.string
         )
-        # if not hasattr(self, 'key'):
-        #     self.key = tf.Variable('', trainable=False, name='key')
-        #     # try:
-        #     #     self.key = tf.Variable('', trainable=False, name='key')
-        #     # except ValueError:
-        #     #     self.key = tf.constant("", name='key')
-        # if not hasattr(self, 'iv'):
-        #     self.iv = tf.Variable('', trainable=False, name='iv')
-        #     # try:
-        #     #     self.iv = tf.Variable('', trainable=False, name='iv')
-        #     # except ValueError:
-        #     #     self.iv = tf.constant("", name='iv')
         self.key.assign(current_key)
         self.iv.assign(current_iv)
         with self.name_scope:

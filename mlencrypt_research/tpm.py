@@ -166,8 +166,12 @@ class TPM(tf.Module):
 
         # compute inner activation sigma, [K]
         sigma, nonzero = self.compute_sigma(X)
-        # compute output of TPM, binary scalar
-        tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int32)
+
+        # compute output of TPM, binary scalar:
+        tau = tf.math.sign(tf.math.reduce_prod(nonzero))
+        if tau.dtype == tf.float16:
+            # tau is float16 for ProbabilisticTPM
+            tau = tf.cast(tau, tf.int32)
 
         with self.name_scope:
             self.X = X

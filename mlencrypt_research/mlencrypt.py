@@ -137,13 +137,15 @@ def iterate(
         name='do-not-use-hparams'
     )
 
-    # TODO: use tf.cond
-    if environ["MLENCRYPT_TB"] == 'TRUE':
+    def log_inputs():
         tb_summary('inputs', X)
         K, N = Alice.K, Alice.N
         hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
         tb_heatmap('inputs', X, ipaxis, hpaxis)
         tb_boxplot('inputs', X, hpaxis)
+
+    tf.cond(log_tb, true_fn=log_inputs,
+            false_fn=lambda: None, name='tb-inputs')
 
     # compute outputs of TPMs
     tauA = Alice.get_output(X)
@@ -189,8 +191,7 @@ def iterate(
             false_fn=lambda: None, name='tb-keys-ivs')
 
     score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
-    score_eve.assign(100. * sync_score(Alice, Eve),
-                     name='calc-sync-A-E')
+    score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
 
     def calc_and_log_sync_B_E():
         sync_score(Bob, Eve)

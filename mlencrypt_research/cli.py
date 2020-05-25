@@ -86,16 +86,16 @@ def cli():
         'random_walk',
     ]),
     default='hebbian',
-    show_default=True
+    show_default=True,
 )
 @click.option(
-    '-K', '--K', default=8, show_default=True, type=int
+    '-K', '--K', default=8, show_default=True, type=int,
 )
 @click.option(
-    '-N', '--N', default=12, show_default=True, type=int
+    '-N', '--N', default=12, show_default=True, type=int,
 )
 @click.option(
-    '-L', '--L', default=4, show_default=True, type=int
+    '-L', '--L', default=4, show_default=True, type=int,
 )
 @click.option(
     '-a', '--attack',
@@ -105,16 +105,16 @@ def cli():
         'probabilistic',
     ]),
     default='none',
-    show_default=True
+    show_default=True,
 )
 @click.option(
-    '-kl', '--key_length', default=256, show_default=True, type=int
+    '-kl', '--key_length', default=256, show_default=True, type=int,
 )
 @click.option(
-    '-ivl', '--iv_length', default=128, show_default=True, type=int
+    '-ivl', '--iv_length', default=128, show_default=True, type=int,
 )
 @click.option(
-    '-tb', '--tensorboard', is_flag=True
+    '-tb', '--tensorboard', show_default=True, is_flag=True,
 )
 def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
@@ -161,7 +161,7 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
     '-o', '--output_file',
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
     default='./output.csv',
-    show_default=True
+    show_default=True,
 )
 @click.option(
     '-ur', '--update_rule',
@@ -174,16 +174,16 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
         'random_walk',
     ]),
     default='hebbian',
-    show_default=True
+    show_default=True,
 )
 @click.option(
-    '-K', '--K', default=8, show_default=True, type=int
+    '-K', '--K', default=8, show_default=True, type=int,
 )
 @click.option(
-    '-N', '--N', default=12, show_default=True, type=int
+    '-N', '--N', default=12, show_default=True, type=int,
 )
 @click.option(
-    '-L', '--L', default=4, show_default=True, type=int
+    '-L', '--L', default=4, show_default=True, type=int,
 )
 @click.option(
     '-a', '--attack',
@@ -193,16 +193,16 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
         'probabilistic',
     ]),
     default='none',
-    show_default=True
+    show_default=True,
 )
 @click.option(
-    '-kl', '--key_length', default=256, show_default=True, type=int
+    '-kl', '--key_length', default=256, show_default=True, type=int,
 )
 @click.option(
-    '-ivl', '--iv_length', default=128, show_default=True, type=int
+    '-ivl', '--iv_length', default=128, show_default=True, type=int,
 )
 @click.option(
-    '-tb', '--tensorboard', is_flag=True
+    '-tb', '--tensorboard', show_default=True, is_flag=True,
 )
 def multiple(
     count, output_file,
@@ -287,13 +287,16 @@ def multiple(
             'bohb',
             'smr',
         ],
-        case_sensitive=False
+        case_sensitive=False,
     )
 )
 @click.option(
-    '-tb', '--tensorboard', is_flag=True
+    '-s', '--num-samples', default=2, show_default=True, type=int,
 )
-def hparams(algorithm, scheduler, tensorboard):
+@click.option(
+    '-tb', '--tensorboard', show_default=True, is_flag=True,
+)
+def hparams(algorithm, scheduler, num_samples, tensorboard):
     from glob import glob
 
     import tensorflow.summary
@@ -596,8 +599,7 @@ def hparams(algorithm, scheduler, tensorboard):
         trainable,
         search_alg=algo,
         scheduler=sched,
-        # num_samples=100,
-        num_samples=10,
+        num_samples=num_samples,
         loggers=[
             tune.logger.JsonLogger,
             tune.logger.CSVLogger,

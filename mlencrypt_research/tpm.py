@@ -133,6 +133,7 @@ class TPM(tf.Module):
             self.w = initial_weights
             self.key = tf.Variable("", name='key')
             self.iv = tf.Variable("", name='iv')
+            self.tau = tf.Variable(0, name='tau')
 
     def compute_sigma(self, X):
         """
@@ -180,8 +181,9 @@ class TPM(tf.Module):
 
         with self.name_scope:
             self.X = X
-            self.sigma.assign(sigma)
-            self.tau = tau
+            # self.sigma.assign(sigma)
+            self.sigma.assign(nonzero)
+            self.tau.assign(tau)
             if environ['MLENCRYPT_TB'] == 'TRUE':
                 tf.summary.scalar('tau', self.tau)
 
@@ -547,8 +549,8 @@ class GeometricTPM(TPM):
             name='sigma-no-zeroes'
         )
         self.sigma[min].assign(tf.math.negative(nonzero[min]))
-        self.tau = tf.bitcast(tf.math.sign(
-            tf.math.reduce_prod(self.sigma)), tf.int32)
+        self.tau.assign(tf.bitcast(tf.math.sign(
+            tf.math.reduce_prod(self.sigma)), tf.int32))
 
     def update(self, tau2, update_rule):
         """Updates the weights according to the specified update rule.
@@ -558,7 +560,8 @@ class GeometricTPM(TPM):
             update_rule (str): The update rule, must be 'hebbian',
                 'anti_hebbian', or 'random_walk'.
         """
-        if super().update(tau2, update_rule):
+        updated = super().update(tau2, update_rule)
+        if updated:
             return True
         else:
             self.update_sigma()

@@ -168,11 +168,9 @@ def iterate(
         # tauE then tauA must equal tauE due to the associative law of boolean
         # multiplication
         update_E()
-    elif Eve.type == 'geometric' and tauA == tauE:
-        # this is currently used:
+    elif Eve.type == 'geometric' and updated_A_B:
         # https://www.ki.tu-berlin.de/fileadmin/fg135/publikationen/Ruttor_2007_DNC.pdf#page=2
-        # but this suggests an alternative control flow:
-        # http://www.ccs.neu.edu/home/riccardo/courses/cs6750-fa09/talks/Lowell-neural-crypto.pdf#page=12
+        # https://www.ccs.neu.edu/home/riccardo/courses/cs6750-fa09/talks/Lowell-neural-crypto.pdf#page=12
         update_E()
     elif Eve.type == 'probabilistic':
         Eve.update(tauA, updated_A_B)

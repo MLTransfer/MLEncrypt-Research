@@ -21,6 +21,8 @@ def indices_from_2d(index_2d, k):
     return tf.math.floormod(index_2d, k), tf.math.floordiv(index_2d, k)
 
 
+# TODO: see https://youtu.be/51YtxSH-U3Y?t=582
+
 def hebbian(W, X, sigma, tau1, tau2, l):
     k, n = W.shape
     # TODO: benchmark tf.size(W) vs k*n

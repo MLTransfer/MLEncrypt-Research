@@ -185,8 +185,8 @@ category = "main"
 description = "Creation and manipulation of parameter configuration spaces for automated algorithm configuration and hyperparameter tuning."
 name = "configspace"
 optional = false
-python-versions = ">=3.5.*"
-version = "0.4.12"
+python-versions = ">=3.6.*"
+version = "0.4.13"
 
 [package.dependencies]
 cython = "*"
@@ -641,7 +641,7 @@ description = "A Python toolbox for performing gradient-free optimization"
 name = "nevergrad"
 optional = false
 python-versions = ">=3.6"
-version = "0.4.1.post3"
+version = "0.4.1.post4"
 
 [package.dependencies]
 bayesian-optimization = ">=1.1.0"
@@ -1540,7 +1540,7 @@ configparser = [
     {file = "configparser-5.0.0.tar.gz", hash = "sha256:2ca44140ee259b5e3d8aaf47c79c36a7ab0d5e94d70bd4105c03ede7a20ea5a1"},
 ]
 configspace = [
-    {file = "ConfigSpace-0.4.12.tar.gz", hash = "sha256:d9c30d34c1410c403df28dc6e89a6f19dfae179969ced167ef370a6b0ce9940d"},
+    {file = "ConfigSpace-0.4.13.tar.gz", hash = "sha256:9f2bc612a435417a68c05b4a1e0cc5f538534c31ae3da38aed383087fb94c611"},
 ]
 cycler = [
     {file = "cycler-0.10.0-py2.py3-none-any.whl", hash = "sha256:1d8a5ae1ff6c5cf9b93e8811e581232ad8920aeec647c37316ceac982b08cb2d"},
@@ -1834,8 +1834,8 @@ networkx = [
     {file = "networkx-2.4.tar.gz", hash = "sha256:f8f4ff0b6f96e4f9b16af6b84622597b5334bf9cae8cf9b2e42e7985d5c95c64"},
 ]
 nevergrad = [
-    {file = "nevergrad-0.4.1.post3-py3-none-any.whl", hash = "sha256:b4af3241696619da479ce10867ce67c7f4d3a208adc10708d0001fc52475d72b"},
-    {file = "nevergrad-0.4.1.post3.tar.gz", hash = "sha256:180652b0936e8c1dfdaa5ae42c397a80b7826cb38d89f90b5646e127a1fbb94d"},
+    {file = "nevergrad-0.4.1.post4-py3-none-any.whl", hash = "sha256:9383cd545256fc1d4827704d49e7a55bc93a71ee0144c89e908d446f674d27d5"},
+    {file = "nevergrad-0.4.1.post4.tar.gz", hash = "sha256:bd4b896a629d2817a74043113eccab66850dfd23d6cb9253248db92bb6c6dc44"},
 ]
 numpy = [
     {file = "numpy-1.18.4-cp35-cp35m-macosx_10_9_intel.whl", hash = "sha256:efdba339fffb0e80fcc19524e4fdbda2e2b5772ea46720c44eaac28096d60720"},

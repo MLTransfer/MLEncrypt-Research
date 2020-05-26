@@ -11,7 +11,8 @@ from math import pi
 
 
 @tf.function(
-    experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+    experimental_autograph_options=tf.autograph.experimental.Feature.all_but(
+        tf.autograph.experimental.Feature.NAME_SCOPES),
     experimental_relax_shapes=True,
 )
 def sync_score(TPM1, TPM2):

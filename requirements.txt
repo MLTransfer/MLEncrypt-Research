@@ -52,8 +52,8 @@ colorama==0.4.3 \
 configparser==5.0.0 \
     --hash=sha256:cffc044844040c7ce04e9acd1838b5f2e5fa3170182f6fda4d2ea8b0099dbadd \
     --hash=sha256:2ca44140ee259b5e3d8aaf47c79c36a7ab0d5e94d70bd4105c03ede7a20ea5a1
-configspace==0.4.12 \
-    --hash=sha256:d9c30d34c1410c403df28dc6e89a6f19dfae179969ced167ef370a6b0ce9940d
+configspace==0.4.13 \
+    --hash=sha256:9f2bc612a435417a68c05b4a1e0cc5f538534c31ae3da38aed383087fb94c611
 cycler==0.10.0 \
     --hash=sha256:1d8a5ae1ff6c5cf9b93e8811e581232ad8920aeec647c37316ceac982b08cb2d \
     --hash=sha256:cd7b2d1018258d7247a71425e9f26463dfb444d411c39569972f4ce586b0c9d8
@@ -308,9 +308,9 @@ netifaces==0.10.9 \
 networkx==2.4 \
     --hash=sha256:cdfbf698749a5014bf2ed9db4a07a5295df1d3a53bf80bf3cbd61edf9df05fa1 \
     --hash=sha256:f8f4ff0b6f96e4f9b16af6b84622597b5334bf9cae8cf9b2e42e7985d5c95c64
-nevergrad==0.4.1.post3 \
-    --hash=sha256:b4af3241696619da479ce10867ce67c7f4d3a208adc10708d0001fc52475d72b \
-    --hash=sha256:180652b0936e8c1dfdaa5ae42c397a80b7826cb38d89f90b5646e127a1fbb94d
+nevergrad==0.4.1.post4 \
+    --hash=sha256:9383cd545256fc1d4827704d49e7a55bc93a71ee0144c89e908d446f674d27d5 \
+    --hash=sha256:bd4b896a629d2817a74043113eccab66850dfd23d6cb9253248db92bb6c6dc44
 numpy==1.18.4 \
     --hash=sha256:efdba339fffb0e80fcc19524e4fdbda2e2b5772ea46720c44eaac28096d60720 \
     --hash=sha256:2b573fcf6f9863ce746e4ad00ac18a948978bb3781cffa4305134d31801f3e26 \

@@ -16,6 +16,10 @@ import matplotlib.pyplot as plt  # noqa
 sns.set()
 
 
+autograph_features = tf.autograph.experimental.Feature.all_but(
+    tf.autograph.experimental.Feature.NAME_SCOPES)
+
+
 def tb_summary(name, data):
     with tf.name_scope(name):
         data_float = tf.bitcast(data, tf.float16)
@@ -51,7 +55,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
 def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
     scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
     with tf.name_scope(scope if scope else scope_name) as scope:
-        data_float = tf.bitcast(data, tf.float32)
+        data_float = tf.cast(data, tf.float32)
         min = tf.math.reduce_min(data_float)
         max = tf.math.reduce_max(data_float)
         data_range = max - min + 1
@@ -187,7 +191,7 @@ class TPM(tf.Module):
         return self.get_output(X)
 
     @tf.function(
-        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_autograph_options=autograph_features,
         experimental_relax_shapes=True,
     )
     def update(self, tau2, update_rule):
@@ -265,18 +269,24 @@ class TPM(tf.Module):
                                 scope=weights_scope
                             )
 
-                            def log_weights_hperceptron(K, weights):
-                                for i in range(K):
-                                    # hperceptron weights aren't logged, see
-                                    # https://github.com/tensorflow/tensorflow/issues/38772
-                                    with tf.name_scope(f'hperceptron{i + 1}'):
-                                        tb_summary('weights', weights[i])
-                            tf.numpy_function(
-                                log_weights_hperceptron,
-                                [self.K, self.w],
-                                [],
-                                name='tb-images-weights'
-                            )
+                            # def log_hperceptron(scope_name, value):
+                            #     with tf.name_scope(scope_name.decode("utf-8")):
+                            #         tb_summary('weights', value)
+                            #
+                            # for i in range(self.K):
+                            #     # hperceptron weights aren't logged, see
+                            #     # https://github.com/tensorflow/tensorflow/issues/38772
+                            #     scope_name = tf.strings.format(
+                            #         "hperceptron{}",
+                            #         i + 1
+                            #     )
+                            #     value = self.w[i]
+                            #     tf.numpy_function(
+                            #         log_hperceptron,
+                            #         [scope_name, value],
+                            #         [],
+                            #         name='tb-images-weights'
+                            #     )
                     except tf.errors.OutOfRangeError:
                         tf.experimental.async_clear_error()
             return True
@@ -284,7 +294,7 @@ class TPM(tf.Module):
             return False
 
     @tf.function(
-        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_autograph_options=autograph_features,
         experimental_relax_shapes=True,
     )
     def compute_key(self, key_length, iv_length):
@@ -451,7 +461,7 @@ class ProbabilisticTPM(TPM):
         return self.mpW
 
     @tf.function(
-        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_autograph_options=autograph_features,
         experimental_relax_shapes=True,
     )
     def update(self, tau2, updated_A_B):
@@ -464,7 +474,7 @@ class ProbabilisticTPM(TPM):
         self.get_most_probable_weights()
 
     @tf.function(
-        experimental_autograph_options=tf.autograph.experimental.Feature.ALL,
+        experimental_autograph_options=autograph_features,
         experimental_relax_shapes=True,
     )
     def compute_key(self, key_length, iv_length):

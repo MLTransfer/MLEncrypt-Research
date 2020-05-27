@@ -45,7 +45,7 @@ def cli():
     from tensorflow import config as tfconfig
 
     tfconfig.optimizer.set_jit(True)
-    # tfconfig.experimental.set_synchronous_execution(True)
+    tfconfig.experimental.set_synchronous_execution(True)
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
         'constant_folding': True,

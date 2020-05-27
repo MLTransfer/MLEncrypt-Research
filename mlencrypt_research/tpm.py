@@ -121,19 +121,19 @@ class TPM(tf.Module):
         """
         super(TPM, self).__init__(name=name)
         self.type = 'basic'
-        self.sigma = tf.Variable(
-            tf.zeros([K], dtype=tf.int32),
-            trainable=False,
-            name='sigma'
-        )
         with self.name_scope:
             self.K = tf.guarantee_const(tf.constant(K, name='K'))
             self.N = tf.guarantee_const(tf.constant(N, name='N'))
             self.L = tf.guarantee_const(tf.constant(L, name='L'))
             self.w = initial_weights
+            self.sigma = tf.Variable(
+                tf.zeros([K], dtype=tf.int32),
+                trainable=False,
+                name='sigma'
+            )
+            self.tau = tf.Variable(0, name='tau')
             self.key = tf.Variable("", name='key')
             self.iv = tf.Variable("", name='iv')
-            self.tau = tf.Variable(0, name='tau')
 
     def compute_sigma(self, X):
         """
@@ -172,7 +172,7 @@ class TPM(tf.Module):
         # compute inner activation sigma, [K]
         sigma, nonzero = self.compute_sigma(X)
 
-        # compute output of TPM, binary scalar:
+        # tau is the output of the TPM, and is a binary scalar:
         tau = tf.math.sign(tf.math.reduce_prod(nonzero))
         # TODO: is the if-statement necessary?
         if tau.dtype != tf.int32:
@@ -357,26 +357,28 @@ class ProbabilisticTPM(TPM):
     def __init__(self, name, K, N, L, initial_weights):
         super().__init__(name, K, N, L, initial_weights)
         self.type = 'probabilistic'
-        self.w = tf.Variable(
-            tf.fill(
-                [K, N, 2 * L + 1],
-                tf.guarantee_const(tf.constant(1. / (2 * L + 1), tf.float16)),
-            ),
-            trainable=True
-        )
-        self.mpW = tf.Variable(
-            tf.zeros([K, N], dtype=tf.int32),
-            # trainable=True
-        )
-        self.eW = tf.Variable(
-            tf.zeros([K, N], dtype=tf.float16),
-            # trainable=True
-        )
-        self.sigma = tf.Variable(
-            tf.zeros([K], dtype=tf.float16),
-            trainable=False,
-            name='sigma'
-        )
+        with self.name_scope:
+            self.w = tf.Variable(
+                tf.fill(
+                    [K, N, 2 * L + 1],
+                    tf.guarantee_const(tf.constant(1. / (2 * L + 1),
+                                                   tf.float16)),
+                ),
+                trainable=True
+            )
+            self.mpW = tf.Variable(
+                tf.zeros([K, N], dtype=tf.int32),
+                # trainable=True
+            )
+            self.eW = tf.Variable(
+                tf.zeros([K, N], dtype=tf.float16),
+                # trainable=True
+            )
+            self.sigma = tf.Variable(
+                tf.zeros([K], dtype=tf.float16),
+                trainable=False,
+                name='sigma'
+            )
 
     def get_expected_weights(self):
         def get_expected_weight(dpdf):

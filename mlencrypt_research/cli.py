@@ -109,8 +109,17 @@ def cli():
 @click.option(
     '-tb', '--tensorboard', show_default=True, is_flag=True,
 )
-def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
+@click.option(
+    '-b', '--bare', show_default=True, is_flag=True,
+)
+def single(
+    update_rule, k, n, l,
+    attack,
+    key_length, iv_length,
+    tensorboard, bare
+):
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
+    environ["MLENCRYPT_BARE"] = str(bare).upper()
 
     initial_weights = {
         tpm: weights_tensor_to_variable(weights, tpm)
@@ -197,14 +206,19 @@ def single(update_rule, k, n, l, attack, key_length, iv_length, tensorboard):
 @click.option(
     '-tb', '--tensorboard', show_default=True, is_flag=True,
 )
+@click.option(
+    '-b', '--bare', show_default=True, is_flag=True,
+)
 def multiple(
     count, output_file,
     update_rule, k, n, l,
     attack,
     key_length, iv_length,
-    tensorboard
+    tensorboard, bare
 ):
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
+    environ["MLENCRYPT_BARE"] = str(bare).upper()
+
     with open(output_file, 'w') as losses_writer:
         losses_writer.write(
             "training time (s),synchronization score (%),loss\n"
@@ -292,7 +306,10 @@ def multiple(
 @click.option(
     '-tb', '--tensorboard', show_default=True, is_flag=True,
 )
-def hparams(algorithm, scheduler, num_samples, tensorboard):
+@click.option(
+    '-b', '--bare', show_default=True, is_flag=True,
+)
+def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     from glob import glob
 
     import tensorflow.summary
@@ -306,6 +323,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard):
     # less summaries are logged if MLENCRYPT_TB is TRUE (for efficiency)
     # TODO: use tf.summary.record_if?
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
+    environ["MLENCRYPT_BARE"] = str(bare).upper()
 
     logdir = f'logs/hparams/{datetime.now()}'
 

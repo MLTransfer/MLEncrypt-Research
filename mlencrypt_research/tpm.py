@@ -22,6 +22,7 @@ autograph_features = tf.autograph.experimental.Feature.all_but(
 
 def tb_summary(name, data):
     with tf.name_scope(name):
+        # TODO: don't use bitcast? softmax and stddev are NaN
         data_float = tf.bitcast(data, tf.float16)
         with tf.name_scope('summaries'):
             tf.summary.scalar('mean', tf.math.reduce_mean(data))
@@ -471,8 +472,8 @@ class ProbabilisticTPM(TPM):
     def update(self, tau2, updated_A_B):
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
-            mlencrypt_research.update_rules.probabilistic.hebbian()
-        mlencrypt_research.update_rules.probabilistic.monte_carlo()
+            mlencrypt_research.update_rules.probabilistic.analytical()
+        mlencrypt_research.update_rules.probabilistic.hebbian()
 
         self.get_expected_weights()
         self.get_most_probable_weights()
@@ -540,6 +541,7 @@ class GeometricTPM(TPM):
         Negates the sigma value of the hidden perceptron with the lowest
         current state.
         """
+        # https://arxiv.org/pdf/0711.2411.pdf#page=33
         wx = tf.math.reduce_sum(tf.math.multiply(self.X, self.w), axis=1)
         h_i = tf.math.divide(tf.cast(wx, tf.float16),
                              tf.math.sqrt(tf.cast(self.N, tf.float16)))

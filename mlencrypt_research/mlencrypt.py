@@ -56,7 +56,9 @@ def sync_score(TPM1, TPM2):
         weights2_norm = tf.math.l2_normalize(weights2_float)
         # cos_sim is bound by [-1, 1]:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
-        return -cos_sim / 2. + .5  # bound cos_sim to [0, 1]
+        # cos_sim is bound to [0, 1] according to:
+        # https://arxiv.org/pdf/0711.2411.pdf#page=62
+        return -cos_sim / 2. + .5
 
     weights1 = TPM1.w
     shape1 = TPM1.w.get_shape()
@@ -189,8 +191,10 @@ def iterate(
     tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
 
-    score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
-    score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
+    if environ["MLENCRYPT_BARE"] != 'TRUE' or \
+            environ["MLENCRYPT_TB"] == 'TRUE':
+        score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
+        score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
 
     def calc_and_log_sync_B_E():
         sync_score(Bob, Eve)
@@ -198,15 +202,25 @@ def iterate(
     tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
             false_fn=lambda: None, name='calc-sync-B-E')
 
-    tf.print(
-        "Update rule = ", (update_rule_A, update_rule_B, update_rule_E), " / "
-        "A-B Synchronization = ", score, "% / ",
-        "A-E Synchronization = ", score_eve, "% / ",
-        nb_updates, " Updates (Alice) / ",
-        nb_eve_updates, " Updates (Eve)",
-        sep='',
-        name='log-iteration'
-    )
+    current_update_rules = (update_rule_A, update_rule_B, update_rule_E)
+    if environ["MLENCRYPT_BARE"] == 'TRUE':
+        tf.print(
+            "Update rule = ", current_update_rules, " / ",
+            nb_updates, " Updates (Alice) / ",
+            nb_eve_updates, " Updates (Eve)",
+            sep='',
+            name='log-iteration'
+        )
+    else:
+        tf.print(
+            "Update rule = ", current_update_rules, " / "
+            "A-B Synchronization = ", score, "% / ",
+            "A-E Synchronization = ", score_eve, "% / ",
+            nb_updates, " Updates (Alice) / ",
+            nb_eve_updates, " Updates (Eve)",
+            sep='',
+            name='log-iteration'
+        )
 
 
 # @tf.function
@@ -347,13 +361,8 @@ def run(
             tf.summary.experimental.set_step(nb_updates)
 
         # instead of while, use for until L^4*K*N and break
-        weights_A_B_equal = tf.reduce_all(
-            tf.math.equal(Alice.w, Bob.w,
-                          name='weights-A-B-equal-elementwise'),
-            name='weights-A-B-equal'
-        )
         start_time = perf_counter()
-        while score < 100. and not weights_A_B_equal:
+        while not (Alice.w.numpy() == Bob.w.numpy()).all():
             train_step()
 
         end_time = perf_counter()
@@ -366,12 +375,19 @@ def run(
         #  ^^^^^^^^ scalars have shape []
         key_length = tf.guarantee_const(key_length)
         iv_length = tf.guarantee_const(iv_length)
-        if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
-            # create scatterplots (in scalars dashboard) of metric vs steps
-            tf.summary.scalar('training_time', training_time)
-            tf.summary.scalar('eve_score', score_eve)
-            tf.summary.scalar('loss', loss)
-
+        if environ["MLENCRYPT_BARE"] == 'TRUE' or \
+                environ["MLENCRYPT_TB"] != 'TRUE':
+            score_eve.assign(
+                100. * sync_score(Alice, Eve),
+                name='calc-sync-A-E'
+            )
+            tf.print(
+                "\n\n",
+                "Training time = ", training_time, " seconds.\n",
+                sep='',
+                name='log-run-final'
+            )
+        else:
             tf.print(
                 "\n\n",
                 "Training time = ", training_time, " seconds.\n",
@@ -381,11 +397,10 @@ def run(
                 sep='',
                 name='log-run-final'
             )
-        else:
-            tf.print(
-                "\n\n",
-                "Training time = ", training_time, " seconds.\n",
-                sep='',
-                name='log-run-final'
-            )
+        if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
+            # create scatterplots (in scalars dashboard) of metric vs steps
+            tf.summary.scalar('training_time', training_time)
+            tf.summary.scalar('eve_score', score_eve)
+            tf.summary.scalar('loss', loss)
+
     return training_time, score_eve, loss

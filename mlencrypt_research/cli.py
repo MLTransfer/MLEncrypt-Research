@@ -334,6 +334,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     # is quite successful in the limit K -> infinity. Consequently, one should
     # only use Tree Parity Machines with three hidden units for the neural
     # key-exchange protocol." (Ruttor, 2006)
+    # https://arxiv.org/pdf/0711.2411.pdf#page=59
 
     update_rules = [
         'random-same',
@@ -374,7 +375,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         # for each attack, the TPMs should use the same inputs
         seed = tfrandom.uniform(
             [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
-        for attack in ['none', 'geometric', 'probabilistic']:
+        for attack in ['none', 'geometric']:
             initial_weights = {
                 tpm: weights_tensor_to_variable(weights, tpm)
                 for tpm, weights in initial_weights_tensors.items()
@@ -408,7 +409,8 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         reporter(
             avg_training_time=avg_training_time.numpy(),
             avg_eve_score=avg_eve_score.numpy(),
-            avg_loss=avg_loss.numpy()
+            avg_loss=avg_loss.numpy(),
+            done=True,
         )
 
     if algorithm == 'hyperopt':
@@ -427,7 +429,12 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         algo = HyperOptSearch(
             space,
             metric='avg_loss',
-            mode='min'
+            mode='min',
+            points_to_evaluate=[
+                {'update_rule': 0, 'K': 3, 'N': 16, 'L': 8},
+                {'update_rule': 0, 'K': 8, 'N': 16, 'L': 8},
+                {'update_rule': 0, 'K': 8, 'N': 16, 'L': 128},
+            ],
         )
     elif algorithm == 'bayesopt':
         from ray.tune.suggest.bayesopt import BayesOptSearch
@@ -488,7 +495,12 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
             optimizer,
             ["update_rule", "K", "N", "L"],
             metric="avg_loss",
-            mode="min"
+            mode="min",
+            points_to_evaluate=[
+                ['random-same', 3, 16, 8],
+                ['random-same', 8, 16, 8],
+                ['random-same', 8, 16, 128],
+            ],
         )
     elif algorithm == 'dragonfly':
         # TODO: doesn't work
@@ -533,7 +545,16 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         func_caller = EuclideanFunctionCaller(
             None, domain_config.domain.list_of_domains[0])
         optimizer = EuclideanGPBandit(func_caller, ask_tell_mode=True)
-        algo = DragonflySearch(optimizer, metric="avg_loss", mode="min")
+        algo = DragonflySearch(
+            optimizer,
+            metric="avg_loss",
+            mode="min",
+            points_to_evaluate=[
+                ['random-same', 3, 16, 8],
+                ['random-same', 8, 16, 8],
+                ['random-same', 8, 16, 128],
+            ],
+        )
     elif algorithm == 'bohb':
         from ConfigSpace import ConfigurationSpace
         from ConfigSpace import hyperparameters as CSH

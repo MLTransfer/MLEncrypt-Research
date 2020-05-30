@@ -7,7 +7,6 @@ from os import environ
 
 import tensorflow as tf
 import seaborn as sns
-import pandas as pd
 import numpy as np
 from matplotlib import use as matplot_backend
 matplot_backend('agg')
@@ -37,7 +36,9 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
     fig, ax = plt.subplots()
     cmap = plt.get_cmap(lut=int(data_range.item()))
     sns.heatmap(
-        pd.DataFrame(data=data, index=yaxis, columns=xaxis),
+        data,
+        xticklabels=xaxis,
+        yticklabels=yaxis,
         ax=ax,
         cmap=cmap,
         cbar_kws={"ticks": ticks, "boundaries": boundaries}
@@ -76,13 +77,13 @@ def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
     return scope
 
 
-def create_boxplot(name, data, xaxis):
+def create_boxplot(ylabel, data, xaxis):
     fig, ax = plt.subplots()
-    df = pd.DataFrame(data=data, index=xaxis).transpose()
-    sns.boxplot(data=df, ax=ax)
-    sns.swarmplot(data=df, size=2, color=".3", linewidth=0)
+    sns.boxplot(data=data, ax=ax)
+    sns.swarmplot(data=data, size=2, color=".3", linewidth=0, ax=ax)
     ax.xaxis.grid(True)
-    ax.set(xlabel="hidden perceptron", ylabel=name)
+    ax.set(xlabel="hidden perceptron", ylabel=ylabel.decode("utf-8"))
+    ax.set_xticks(xaxis)
     sns.despine(fig=fig, ax=ax, trim=True, left=True)
 
     fig.canvas.draw()
@@ -94,10 +95,13 @@ def create_boxplot(name, data, xaxis):
     return pixels
 
 
-def tb_boxplot(name, data, xaxis, unique=True, scope=None):
-    scope_name = f"{name}/" if (not name.endswith('/') and unique) else name
+def tb_boxplot(scope_name, data, xaxis, unique=True, scope=None, ylabel=None):
+    # if ylabel is None, then use scope_name, else use the given ylabel:
+    ylabel = scope_name if not ylabel else ylabel
+    scope_name = scope_name+"/" if (not scope_name.endswith('/') and unique) \
+        else scope_name
     with tf.name_scope(scope if scope else scope_name) as scope:
-        inp = [name, data, xaxis]
+        inp = [ylabel, tf.transpose(data), xaxis]
         # tf.numpy_function: n=50, x-bar=155.974089 s, sigma=36.414627 s
         # tf.py_function:    n=50, x-bar=176.504593 s, sigma=47.747290 s
         # With Welch's t-test, we had a p-value of 0.00880203; we have
@@ -269,7 +273,8 @@ class TPM(tf.Module):
                                 self.w,
                                 hpaxis,
                                 unique=False,
-                                scope=weights_scope
+                                scope=weights_scope,
+                                ylabel='weights',
                             )
 
                             # def log_hperceptron(scope_name, value):

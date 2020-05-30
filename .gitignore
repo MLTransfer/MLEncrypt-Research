@@ -2,13 +2,8 @@ notes.txt
 
 .DS_Store
 logs/
-weights-heatmap-*.png
-weights-boxplot-*.png
-inputs-heatmap-*.png
-inputs-boxplot-*.png
+ray_results/
 output.csv
-pyfunc.csv
-numpyfunc.csv
 
 
 # Byte-compiled / optimized / DLL files

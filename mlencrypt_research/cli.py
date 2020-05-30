@@ -646,9 +646,9 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
                 },
             },
         },
-        resources_per_trial={"cpu": 1, "gpu": 3},
+        # resources_per_trial={"cpu": 1, "gpu": 3},
         local_dir='./ray_results',
-        # export_formats=['csv'],  # TODO: is this correct?
+        export_formats=['csv'],  # TODO: add other formats?
         num_samples=num_samples,
         loggers=[
             tune.logger.JsonLogger,

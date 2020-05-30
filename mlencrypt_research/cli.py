@@ -499,7 +499,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
             points_to_evaluate=[
                 ['random-same', 3, 16, 8],
                 ['random-same', 8, 16, 8],
-                ['random-same', 8, 16, 128],
+                # ['random-same', 8, 16, 128],
             ],
         )
     elif algorithm == 'dragonfly':
@@ -552,7 +552,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
             points_to_evaluate=[
                 ['random-same', 3, 16, 8],
                 ['random-same', 8, 16, 8],
-                ['random-same', 8, 16, 128],
+                # ['random-same', 8, 16, 128],
             ],
         )
     elif algorithm == 'bohb':
@@ -607,7 +607,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     # TODO: use more appropriate arguments for schedulers:
     # https://docs.ray.io/en/master/tune/api_docs/schedulers.html
     if scheduler == 'fifo':
-        sched = None
+        sched = None  # Tune defaults to FIFO
     elif scheduler == 'pbt':
         from ray.tune.schedulers import PopulationBasedTraining
         from random import randint
@@ -637,15 +637,6 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     analysis = tune.run(
         trainable,
         name='mlencrypt_research',
-        search_alg=algo,
-        scheduler=sched,
-        num_samples=num_samples,
-        loggers=[
-            tune.logger.JsonLogger,
-            tune.logger.CSVLogger,
-            tune.logger.TBXLogger,
-            WandbLogger
-        ],
         config={
             "monitor": True,
             "env_config": {
@@ -655,6 +646,19 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
                 },
             },
         },
+        resources_per_trial={"cpu": 1, "gpu": 3},
+        local_dir='./ray_results',
+        # export_formats=['csv'],  # TODO: is this correct?
+        num_samples=num_samples,
+        loggers=[
+            tune.logger.JsonLogger,
+            tune.logger.CSVLogger,
+            tune.logger.TBXLogger,
+            WandbLogger
+        ],
+        search_alg=algo,
+        scheduler=sched,
+        queue_trials=True,
     )
     try:
         wandbsweep(analysis)

@@ -56,7 +56,7 @@ def sync_score(TPM1, TPM2):
         weights2_norm = tf.math.l2_normalize(weights2_float)
         # cos_sim is bound by [-1, 1]:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
-        # cos_sim is bound to [0, 1] according to:
+        # we change cos_sim's range to [0, 1] according to:
         # https://arxiv.org/pdf/0711.2411.pdf#page=62
         return -cos_sim / 2. + .5
 

@@ -1,7 +1,9 @@
+import pytest
 from click.testing import CliRunner
 from mlencrypt_research import cli
 
 
+@pytest.mark.skip(reason="takes too long")
 def test_single():
     runner = CliRunner()
     for ur in [

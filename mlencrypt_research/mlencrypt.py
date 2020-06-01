@@ -23,13 +23,10 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
-    score_dtype = tf.float32 if environ["MLENCRYPT_TB"] == 'TRUE' \
-        else tf.float16
-
     tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
 
     # adapted from:
-    # https://github.com/tensorflow/tensorflow/blob/e6da7ff3b082dfff2188b242847b620f1fe79426/tensorflow/python/keras/losses.py#L1674-L1706
+    # https://github.com/tensorflow/tensorflow/blob/r2.2/tensorflow/python/keras/losses.py#L1672-L1716
     # TODO: am I using experimental_implements correctly?
     @tf.function(experimental_implements="cosine_similarity")
     def cosine_similarity(weights1, weights2):
@@ -48,13 +45,21 @@ def sync_score(TPM1, TPM2):
         Returns:
             Cosine similarity tensor.
         """
-        weights1_float = tf.cast(weights1, score_dtype,
+        weights1_float = tf.cast(weights1, tf.float32,
                                  name=f'weights-{tpm1_id}-float')
-        weights2_float = tf.cast(weights2, score_dtype,
+        weights2_float = tf.cast(weights2, tf.float32,
                                  name=f'weights-{tpm2_id}-float')
         weights1_norm = tf.math.l2_normalize(weights1_float)
         weights2_norm = tf.math.l2_normalize(weights2_float)
-        # cos_sim is bound by [-1, 1]:
+
+        # this doesn't work well; cos_sim is occasionally greater than 1.
+        # this is also marginally slower:
+        # cos_sim = tf.tensordot(weights1_norm, weights2_norm,
+        #                        [[0, 1], [0, 1]])
+        # return cos_sim
+
+        # cos_sim is bound by [-1, 1] (for the most part); note that with
+        # cos_sim is still occasionally greater than 1:
         cos_sim = -tf.math.reduce_sum(weights1_norm * weights2_norm)
         # we change cos_sim's range to [0, 1] according to:
         # https://arxiv.org/pdf/0711.2411.pdf#page=62
@@ -259,17 +264,14 @@ def run(
         Eve_class = getattr(tpm_mod, Eve_class_name)
         Eve = Eve_class('Eve', K, N, L, initial_weights['Eve'])
 
-        score_dtype = tf.float32 if environ["MLENCRYPT_TB"] == 'TRUE' \
-            else tf.float16
-
         # try:
         # synchronization score of Alice and Bob
-        score = tf.Variable(0.0, trainable=False,
-                            name='score-A-B', dtype=score_dtype)
+        score = tf.Variable(0., trainable=False,
+                            name='score-A-B', dtype=tf.float32)
 
         # synchronization score of Alice and Eve
-        score_eve = tf.Variable(0.0, trainable=False,
-                                name='score-A-E', dtype=score_dtype)
+        score_eve = tf.Variable(0., trainable=False,
+                                name='score-A-E', dtype=tf.float32)
         # except ValueError:
         #     # tf.function-decorated function tried to create variables
         #     # on non-first call.
@@ -369,9 +371,9 @@ def run(
         training_time = end_time - start_time
         # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
         loss = tf.math.accumulate_n([
-            tf.math.log(tf.cast(training_time, score_dtype)),
+            tf.math.log(training_time),
             score_eve / 100.
-        ], shape=[], tensor_dtype=score_dtype) / 2.
+        ], shape=[], tensor_dtype=tf.float32) / 2.
         #  ^^^^^^^^ scalars have shape []
         key_length = tf.guarantee_const(key_length)
         iv_length = tf.guarantee_const(iv_length)

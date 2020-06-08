@@ -10,6 +10,8 @@ Note: It may appear that enabling JIT compilation results in a slowdown. If you 
 
 Note: Our script features very verbose logging to TensorBoard. Enable this by passing `-tb` to the run command.
 
+Note: You can choose to not calculate the synchronization score for each iteration. Enable this by passing `-b` to the run command.
+
 ### CPU
 
 ```zsh

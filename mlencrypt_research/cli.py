@@ -162,7 +162,7 @@ def single(
 @click.argument('count', type=int)
 @click.option(
     '-o', '--output_file',
-    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    type=click.File(mode='w', encoding='utf-8'),
     default='./output.csv',
     show_default=True,
 )
@@ -220,53 +220,59 @@ def multiple(
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
     environ["MLENCRYPT_BARE"] = str(bare).upper()
 
-    with open(output_file, 'w') as losses_writer:
-        losses_writer.write(
-            "training time (s),synchronization score (%),loss\n"
-        )
-        losses_writer.flush()
-        for _ in range(count):
-            initial_weights = {
-                tpm: weights_tensor_to_variable(weights, tpm)
-                for tpm, weights in get_initial_weights(k, n, l).items()
-            }
+    from csv import writer as csv_writer
 
-            if tensorboard:
-                import tensorflow.summary
-                # import tensorflow.profiler
+    losses_writer = csv_writer(output_file)
+    losses_writer.writerow([
+        'training time (s)',
+        'synchronization score (%)',
+        'loss'
+    ])
+    output_file.flush()
 
-                logdir = join(
-                    'logs/',
-                    str(datetime.now()),
-                    f"ur={update_rule},K={k},N={n},L={l},attack={attack}"
-                )
+    for _ in range(count):
+        initial_weights = {
+            tpm: weights_tensor_to_variable(weights, tpm)
+            for tpm, weights in get_initial_weights(k, n, l).items()
+        }
 
-                tensorflow.summary.trace_on()
-                # TODO: don't profile for more than 10 steps at a time
-                tensorflow.profiler.experimental.start(logdir)
-                with tensorflow.summary.create_file_writer(
-                    logdir
-                ).as_default():
-                    training_time, sync_score, loss = run(
-                        update_rule, k, n, l,
-                        attack,
-                        initial_weights,
-                        key_length=key_length, iv_length=iv_length
-                    )
-                    tensorflow.summary.trace_export("graph")
-                    tensorflow.profiler.experimental.stop()
-            else:
+        if tensorboard:
+            import tensorflow.summary
+            # import tensorflow.profiler
+
+            logdir = join(
+                'logs/',
+                str(datetime.now()),
+                f"ur={update_rule},K={k},N={n},L={l},attack={attack}"
+            )
+
+            tensorflow.summary.trace_on()
+            # TODO: don't profile for more than 10 steps at a time
+            tensorflow.profiler.experimental.start(logdir)
+            with tensorflow.summary.create_file_writer(
+                logdir
+            ).as_default():
                 training_time, sync_score, loss = run(
                     update_rule, k, n, l,
                     attack,
                     initial_weights,
                     key_length=key_length, iv_length=iv_length
                 )
-            data = (
-                f"{training_time},{sync_score.numpy()},{loss.numpy()}\n"
+                tensorflow.summary.trace_export("graph")
+                tensorflow.profiler.experimental.stop()
+        else:
+            training_time, sync_score, loss = run(
+                update_rule, k, n, l,
+                attack,
+                initial_weights,
+                key_length=key_length, iv_length=iv_length
             )
-            losses_writer.write(data)
-            losses_writer.flush()
+        losses_writer.writerow([
+            training_time,
+            sync_score.numpy(),
+            loss.numpy(),
+        ])
+        output_file.flush()
 
 
 @cli.command(name='hparams')

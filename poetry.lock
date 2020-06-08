@@ -454,7 +454,7 @@ SparkTrials = ["pyspark"]
 dev = ["black", "pre-commit", "nose", "pytest"]
 
 [package.source]
-reference = "c2a097368c36daee1a3afd7ec7726a196d1367a3"
+reference = "64713718dd6781416f0814ca3915418b81dbd7ad"
 type = "git"
 url = "https://github.com/hyperopt/hyperopt.git"
 [[package]]
@@ -1349,7 +1349,7 @@ description = "A CLI and library for interacting with the Weights and Biases API
 name = "wandb"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "0.8.36"
+version = "0.9.0"
 
 [package.dependencies]
 Click = ">=7.0"
@@ -1369,6 +1369,8 @@ subprocess32 = ">=3.5.3"
 watchdog = ">=0.8.3"
 
 [package.extras]
+aws = ["boto3"]
+gcp = ["google-cloud-storage"]
 kubeflow = ["kubernetes", "minio", "google-cloud-storage", "sh"]
 
 [[package]]
@@ -1391,7 +1393,7 @@ description = "Measures the displayed width of unicode strings in a terminal"
 name = "wcwidth"
 optional = false
 python-versions = "*"
-version = "0.2.3"
+version = "0.2.4"
 
 [[package]]
 category = "main"
@@ -1462,7 +1464,7 @@ matplotlib = "*"
 numpy = "*"
 
 [metadata]
-content-hash = "fb770035fe83b159d6608719dc63b2364b7d164d906a9a0e12efaa45f2f1f759"
+content-hash = "74112c7f510af8109a77b8b163876c3fdd307adf2d9da96998c824da0ba0b17b"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -2202,15 +2204,15 @@ urllib3 = [
     {file = "urllib3-1.25.9.tar.gz", hash = "sha256:3018294ebefce6572a474f0604c2021e33b3fd8006ecd11d62107a5d2a963527"},
 ]
 wandb = [
-    {file = "wandb-0.8.36-py2.py3-none-any.whl", hash = "sha256:d2ac39d2ab1d506a8e8d962905203533533c60c7b83d9798e679edd778ce0503"},
-    {file = "wandb-0.8.36.tar.gz", hash = "sha256:9ab058ff2d7e0db50129444193ab6efc63de2fb247c33bfe79ab8d40c5164e82"},
+    {file = "wandb-0.9.0-py2.py3-none-any.whl", hash = "sha256:21f5eac41c905fe52b4d68246f285542b8183da85ed3a0b44788744c7e05a052"},
+    {file = "wandb-0.9.0.tar.gz", hash = "sha256:6e18e46995becd79aa174302dd630c200813c5188669b9444d522d698f0898c7"},
 ]
 watchdog = [
     {file = "watchdog-0.10.2.tar.gz", hash = "sha256:c560efb643faed5ef28784b2245cf8874f939569717a4a12826a173ac644456b"},
 ]
 wcwidth = [
-    {file = "wcwidth-0.2.3-py2.py3-none-any.whl", hash = "sha256:980fbf4f3c196c0f329cdcd1e84c554d6a211f18e252e525a0cf4223154a41d6"},
-    {file = "wcwidth-0.2.3.tar.gz", hash = "sha256:edbc2b718b4db6cdf393eefe3a420183947d6aa312505ce6754516f458ff8830"},
+    {file = "wcwidth-0.2.4-py2.py3-none-any.whl", hash = "sha256:79375666b9954d4a1a10739315816324c3e73110af9d0e102d906fdb0aec009f"},
+    {file = "wcwidth-0.2.4.tar.gz", hash = "sha256:8c6b5b6ee1360b842645f336d9e5d68c55817c26d3050f46b235ef2bc650e48f"},
 ]
 werkzeug = [
     {file = "Werkzeug-1.0.1-py2.py3-none-any.whl", hash = "sha256:2de2a5db0baeae7b2d2664949077c2ac63fbd16d98da0ff71837f7d1dea3fd43"},

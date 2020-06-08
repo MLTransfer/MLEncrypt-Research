@@ -46,6 +46,7 @@ def cli():
 
     tfconfig.optimizer.set_jit(True)
     tfconfig.experimental.set_synchronous_execution(True)
+    tfconfig.experimental.enable_mlir_bridge()
     tfconfig.optimizer.set_experimental_options({
         'layout_optimizer': True,
         'constant_folding': True,

@@ -15,7 +15,7 @@ from math import pi
         tf.autograph.experimental.Feature.NAME_SCOPES),
     experimental_relax_shapes=True,
 )
-def sync_score(TPM1, TPM2):
+def sync_score(tpm1_w, tpm2_w, tpm1_name, tpm2_name):
     """
     Args:
         TPM1: Tree Parity Machine 1. Has same parameters as TPM2.
@@ -23,7 +23,7 @@ def sync_score(TPM1, TPM2):
     Returns:
         The synchronization score between TPM1 and TPM2.
     """
-    tpm1_id, tpm2_id = TPM1.name[0], TPM2.name[0]
+    tpm1_id, tpm2_id = tpm1_name[0], tpm2_name[0]
 
     # adapted from:
     # https://github.com/tensorflow/tensorflow/blob/r2.2/tensorflow/python/keras/losses.py#L1672-L1716
@@ -64,17 +64,7 @@ def sync_score(TPM1, TPM2):
         # we change cos_sim's range to [0, 1] according to:
         # https://arxiv.org/pdf/0711.2411.pdf#page=62
         return -cos_sim / 2. + .5
-
-    weights1 = TPM1.w
-    shape1 = TPM1.w.get_shape()
-    shape2 = TPM2.w.get_shape()
-    if shape1 == shape2:
-        weights2 = TPM2.w
-    elif hasattr(TPM2, 'mpW') and len(shape2) == 3:
-        weights2 = TPM2.mpW
-    else:
-        raise ValueError
-    rho = cosine_similarity(weights1, weights2)
+    rho = cosine_similarity(tpm1_w, tpm2_w)
 
     if environ["MLENCRYPT_TB"] == 'TRUE':
         # the generalization error, epsilon, is the probability that a
@@ -90,7 +80,7 @@ def sync_score(TPM1, TPM2):
             name=f'scale-angle-{tpm1_id}-{tpm2_id}-to-0-1'
         )
 
-        with tf.name_scope(f'{TPM1.name}-{TPM2.name}'):
+        with tf.name_scope(f'{tpm1_name}-{tpm2_name}'):
             tf.summary.scalar('sync', data=rho)
             tf.summary.scalar('generalization-error', data=epsilon)
 
@@ -140,9 +130,9 @@ def iterate(
     tf.summary.experimental.set_step(nb_updates)
 
     log_tb = tf.math.equal(
-        tf.guarantee_const(environ["MLENCRYPT_TB"], name='setting-hparams'),
+        tf.guarantee_const(environ["MLENCRYPT_TB"], name='setting-tb'),
         tf.guarantee_const('TRUE', name='true'),
-        name='do-not-use-hparams'
+        name='use-tb'
     )
 
     def log_inputs():
@@ -196,16 +186,28 @@ def iterate(
     tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
 
-    if environ["MLENCRYPT_BARE"] != 'TRUE' or \
-            environ["MLENCRYPT_TB"] == 'TRUE':
-        score.assign(100. * sync_score(Alice, Bob), name='calc-sync-A-B')
-        score_eve.assign(100. * sync_score(Alice, Eve), name='calc-sync-A-E')
 
-    def calc_and_log_sync_B_E():
-        sync_score(Bob, Eve)
-    # log adversary score for Bob's weights
-    tf.cond(log_tb, true_fn=calc_and_log_sync_B_E,
-            false_fn=lambda: None, name='calc-sync-B-E')
+    if environ["MLENCRYPT_BARE"] != 'TRUE':
+        score.assign(
+            100. * sync_score(
+                Alice.w, Bob.w,
+                Alice.name, Bob.name
+            ),
+            name='calc-sync-A-B'
+        )
+        if Eve.type == 'probabilistic':
+            eve_w = Eve.mpW
+        else:
+            eve_w = Eve.w
+        score_eve.assign(
+            100. * sync_score(
+                Alice.w, eve_w,
+                Alice.name, Eve.name
+            ),
+            name='calc-sync-A-E'
+        )
+        if environ["MLENCRYPT_TB"] == 'TRUE':
+            sync_score(Bob.w, eve_w, Bob.name, Eve.name)
 
     current_update_rules = (update_rule_A, update_rule_B, update_rule_E)
     if environ["MLENCRYPT_BARE"] == 'TRUE':
@@ -379,8 +381,12 @@ def run(
         iv_length = tf.guarantee_const(iv_length)
         if environ["MLENCRYPT_BARE"] == 'TRUE' or \
                 environ["MLENCRYPT_TB"] != 'TRUE':
+            if attack == 'probabilistic':
+                eve_w = Eve.mpW
+            else:
+                eve_w = Eve.w
             score_eve.assign(
-                100. * sync_score(Alice, Eve),
+                100. * sync_score(Alice.w, eve_w, Alice.name, Eve.name),
                 name='calc-sync-A-E'
             )
             tf.print(

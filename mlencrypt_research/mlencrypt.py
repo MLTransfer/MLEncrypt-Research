@@ -2,7 +2,7 @@
 from mlencrypt_research.tpm import TPM
 from mlencrypt_research.tpm import tb_summary, tb_heatmap, tb_boxplot
 
-from os import environ
+from os import getenv
 from time import perf_counter
 from importlib import import_module
 
@@ -66,7 +66,7 @@ def sync_score(tpm1_w, tpm2_w, tpm1_name, tpm2_name):
         return -cos_sim / 2. + .5
     rho = cosine_similarity(tpm1_w, tpm2_w)
 
-    if environ["MLENCRYPT_TB"] == 'TRUE':
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
         # the generalization error, epsilon, is the probability that a
         # repulsive step occurs if two corresponding hidden units have
         # different sigma (Ruttor, 2006).
@@ -110,6 +110,7 @@ def select_random_from_list(input_list, op_name=None):
 
 # @tf.function(experimental_compile=True)
 @tf.function(
+    
     experimental_relax_shapes=True,
     experimental_autograph_options=(
         # tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS,
@@ -117,7 +118,7 @@ def select_random_from_list(input_list, op_name=None):
         tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS,
         # tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
         # tf.autograph.experimental.Feature.LISTS
-    )
+    ),
 )
 def iterate(
     X,
@@ -130,7 +131,7 @@ def iterate(
     tf.summary.experimental.set_step(nb_updates)
 
     log_tb = tf.math.equal(
-        tf.guarantee_const(environ["MLENCRYPT_TB"], name='setting-tb'),
+        tf.guarantee_const(getenv('MLENCRYPT_TB', 'FALSE'), name='setting-tb'),
         tf.guarantee_const('TRUE', name='true'),
         name='use-tb'
     )
@@ -187,7 +188,7 @@ def iterate(
             false_fn=lambda: None, name='tb-keys-ivs')
 
 
-    if environ["MLENCRYPT_BARE"] != 'TRUE':
+    if getenv('MLENCRYPT_TB', 'FALSE') != 'TRUE':
         score.assign(
             100. * sync_score(
                 Alice.w, Bob.w,
@@ -206,11 +207,11 @@ def iterate(
             ),
             name='calc-sync-A-E'
         )
-        if environ["MLENCRYPT_TB"] == 'TRUE':
+        if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
             sync_score(Bob.w, eve_w, Bob.name, Eve.name)
 
     current_update_rules = (update_rule_A, update_rule_B, update_rule_E)
-    if environ["MLENCRYPT_BARE"] == 'TRUE':
+    if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
         tf.print(
             "Update rule = ", current_update_rules, " / ",
             nb_updates, " Updates (Alice) / ",
@@ -235,7 +236,7 @@ def run(
     update_rule, K, N, L,
     attack,
     initial_weights,
-    key_length=256, iv_length=128
+    key_length=tf.guarantee_const(256), iv_length=tf.guarantee_const(128)
 ):
     with tf.experimental.async_scope():
 
@@ -379,8 +380,8 @@ def run(
         #  ^^^^^^^^ scalars have shape []
         key_length = tf.guarantee_const(key_length)
         iv_length = tf.guarantee_const(iv_length)
-        if environ["MLENCRYPT_BARE"] == 'TRUE' or \
-                environ["MLENCRYPT_TB"] != 'TRUE':
+        if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE' or \
+                getenv('MLENCRYPT_TB', 'FALSE') != 'TRUE':
             if attack == 'probabilistic':
                 eve_w = Eve.mpW
             else:
@@ -405,7 +406,7 @@ def run(
                 sep='',
                 name='log-run-final'
             )
-        if tf.math.equal(environ["MLENCRYPT_TB"], 'TRUE', name='log-tb'):
+        if tf.math.equal(getenv('MLENCRYPT_TB', 'FALSE'), 'TRUE', name='log-tb'):
             # create scatterplots (in scalars dashboard) of metric vs steps
             tf.summary.scalar('training_time', training_time)
             tf.summary.scalar('eve_score', score_eve)

@@ -3,7 +3,7 @@ from click.testing import CliRunner
 from mlencrypt_research import cli
 
 
-@pytest.mark.skip(reason="takes too long")
+# @pytest.mark.skip(reason="takes too long")
 def test_single():
     runner = CliRunner()
     for ur in [
@@ -11,10 +11,15 @@ def test_single():
         # 'random-different-A-B-E',
         # 'random-different-A-B',
         'hebbian',
+        # assume that anti_hebbian and random_walk if hebbian works:
         # 'anti_hebbian',
         # 'random_walk',
     ]:
-        for attack in ['none', 'geometric', 'probabilistic']:
+        for attack in [
+            # 'none',  # assume that none works if geometric works
+            'geometric',
+            'probabilistic'
+        ]:
             result = runner.invoke(
                 cli.cli,
                 ['single', '-ur', ur, '-a', attack],

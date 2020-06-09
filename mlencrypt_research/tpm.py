@@ -43,7 +43,7 @@ def create_heatmap(name, data_range, ticks, boundaries, data, xaxis, yaxis):
         cmap=cmap,
         cbar_kws={"ticks": ticks, "boundaries": boundaries}
     )
-    ax.set(xlabel="input perceptron", ylabel="hidden perceptron")
+    ax.set(xlabel="input neuron", ylabel="hidden neuron")
 
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
@@ -85,12 +85,13 @@ def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
 
 def create_boxplot(ylabel, data, xaxis):
     fig, ax = plt.subplots()
-    sns.boxplot(data=data, ax=ax)
-    sns.swarmplot(data=data, size=2, color=".3", linewidth=0, ax=ax)
+    # TODO: x-axis is shifted to the right by 1 unit
+    ax = sns.boxplot(data=data, ax=ax)
+    ax = sns.swarmplot(data=data, size=2, color=".3", linewidth=0, ax=ax)
     ax.xaxis.grid(True)
-    ax.set(xlabel="hidden perceptron", ylabel=ylabel.decode("utf-8"))
+    ax.set(xlabel="hidden neuron", ylabel=ylabel.decode("utf-8"))
     ax.set_xticks(xaxis)
-    sns.despine(fig=fig, ax=ax, trim=True, left=True)
+    # ax = sns.despine(fig=fig, ax=ax, trim=True, left=True)
 
     fig.canvas.draw()
     # w, h = fig.get_size_inches() * fig.get_dpi()
@@ -131,10 +132,10 @@ class TPM(tf.Module):
     def __init__(self, name, K, N, L, initial_weights):
         """
         Args:
-            K (int): The number of hidden perceptrons.
-            N (int): The number of input perceptrons that each hidden
-                perceptron has.
-            L (int): The synaptic depth of each input perceptron's weights.
+            K (int): The number of hidden neurons.
+            N (int): The number of input neurons that each hidden
+                neuron has.
+            L (int): The synaptic depth of each input neuron's weights.
         """
         super(TPM, self).__init__(name=name)
         self.type = 'basic'
@@ -157,7 +158,7 @@ class TPM(tf.Module):
         Args:
             X: A random vector which is the input for TPM.
         Returns:
-            A tuple of the vector of the outputs of each hidden perceptron and
+            A tuple of the vector of the outputs of each hidden neuron and
             the vector with all 0s replaced with -1s. For example:
 
             ([-1, 0, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
@@ -289,20 +290,20 @@ class TPM(tf.Module):
                                 ylabel='weights',
                             )
 
-                            # def log_hperceptron(scope_name, value):
+                            # def log_hneuron(scope_name, value):
                             #     with tf.name_scope(scope_name.decode("utf-8")):
                             #         tb_summary('weights', value)
                             #
                             # for i in range(self.K):
-                            #     # hperceptron weights aren't logged, see
+                            #     # hneuron weights aren't logged, see
                             #     # https://github.com/tensorflow/tensorflow/issues/38772
                             #     scope_name = tf.strings.format(
-                            #         "hperceptron{}",
+                            #         "hneuron{}",
                             #         i + 1
                             #     )
                             #     value = self.w[i]
                             #     tf.numpy_function(
-                            #         log_hperceptron,
+                            #         log_hneuron,
                             #         [scope_name, value],
                             #         [],
                             #         name='tb-images-weights'
@@ -424,7 +425,7 @@ class ProbabilisticTPM(TPM):
         Args:
             X: A random vector which is the input for TPM.
         Returns:
-            A tuple of the vector of the outputs of each hidden perceptron and
+            A tuple of the vector of the outputs of each hidden neuron and
             the vector with all 0s replaced with -1s. For example:
 
             ([-1, 0, 1, 0, -1, 1], [-1, -1, 1, -1, -1, 1])
@@ -450,8 +451,8 @@ class ProbabilisticTPM(TPM):
         for the entire probability distributions.
 
         Args:
-            i (int): Index of the hidden perceptron distribution to normalize.
-            j (int): Index of the input perceptron distribution to normalize.
+            i (int): Index of the hidden neuron distribution to normalize.
+            j (int): Index of the input neuron distribution to normalize.
         """
         # TODO: try tf.vectorized_map
         if (j < 0 and i < 0):
@@ -555,7 +556,7 @@ class GeometricTPM(TPM):
     def update_sigma(self):
         """Updates sigma using the geometric algorithm.
 
-        Negates the sigma value of the hidden perceptron with the lowest
+        Negates the sigma value of the hidden neuron with the lowest
         current state.
         """
         # https://arxiv.org/pdf/0711.2411.pdf#page=33

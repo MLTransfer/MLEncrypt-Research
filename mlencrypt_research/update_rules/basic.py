@@ -28,12 +28,12 @@ def hebbian(W, X, sigma, tau1, tau2, l):
     # TODO: benchmark tf.size(W) vs k*n
     indices_2d = tf.range(tf.size(W))
 
-    def update_perceptron(index_2d):
+    def update_neuron(index_2d):
         i, j = indices_from_2d(index_2d, k)
         # assume that anti_hebbian is only called if tau1 equals tau2, so don't
         # multiply by theta(tau1, tau2):
         return X[i, j] * tau1 * theta(sigma[i], tau1)
-    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus_vectorized = tf.map_fn(update_neuron, indices_2d)
     W_plus = tf.reshape(W_plus_vectorized, (k, n))
     W.assign_add(W_plus)
     W.assign(tf.clip_by_value(
@@ -48,12 +48,12 @@ def anti_hebbian(W, X, sigma, tau1, tau2, l):
     # TODO: benchmark tf.size(W) vs k*n
     indices_2d = tf.range(tf.size(W))
 
-    def update_perceptron(index_2d):
+    def update_neuron(index_2d):
         i, j = indices_from_2d(index_2d, k)
         # assume that anti_hebbian is only called if tau1 equals tau2, so don't
         # multiply by theta(tau1, tau2):
         return X[i, j] * tau1 * theta(sigma[i], tau1)
-    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus_vectorized = tf.map_fn(update_neuron, indices_2d)
     W_plus = tf.reshape(W_plus_vectorized, (k, n))
     W.assign_sub(W_plus)
     W.assign(tf.clip_by_value(
@@ -68,12 +68,12 @@ def random_walk(W, X, sigma, tau1, tau2, l):
     # TODO: benchmark tf.size(W) vs k*n
     indices_2d = tf.range(tf.size(W))
 
-    def update_perceptron(index_2d):
+    def update_neuron(index_2d):
         i, j = indices_from_2d(index_2d, k)
         # assume that anti_hebbian is only called if tau1 equals tau2, so don't
         # multiply by theta(tau1, tau2):
         return X[i, j] * theta(sigma[i], tau1)
-    W_plus_vectorized = tf.map_fn(update_perceptron, indices_2d)
+    W_plus_vectorized = tf.map_fn(update_neuron, indices_2d)
     W_plus = tf.reshape(W_plus_vectorized, (k, n))
     W.assign_add(W_plus)
     W.assign(tf.clip_by_value(

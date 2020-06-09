@@ -2,7 +2,7 @@ import click
 from mlencrypt_research.mlencrypt import run
 
 from os.path import join
-from os import environ
+from os import environ, getenv
 from datetime import datetime
 
 from tensorflow import Variable as tfVariable
@@ -121,6 +121,9 @@ def single(
 ):
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
     environ["MLENCRYPT_BARE"] = str(bare).upper()
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE' and \
+            getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
+        raise ValueError('TensorBoard logging cannot be enabled in bare mode.')
 
     initial_weights = {
         tpm: weights_tensor_to_variable(weights, tpm)
@@ -219,6 +222,9 @@ def multiple(
 ):
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
     environ["MLENCRYPT_BARE"] = str(bare).upper()
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE' and \
+            getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
+        raise ValueError('TensorBoard logging cannot be enabled in bare mode.')
 
     from csv import writer as csv_writer
 
@@ -331,6 +337,9 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     # TODO: use tf.summary.record_if?
     environ["MLENCRYPT_TB"] = str(tensorboard).upper()
     environ["MLENCRYPT_BARE"] = str(bare).upper()
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE' and \
+            getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
+        raise ValueError('TensorBoard logging cannot be enabled in bare mode.')
 
     logdir = f'logs/hparams/{datetime.now()}'
 

@@ -108,18 +108,6 @@ def select_random_from_list(input_list, op_name=None):
     return input_list[index]
 
 
-# @tf.function(experimental_compile=True)
-@tf.function(
-    
-    experimental_relax_shapes=True,
-    experimental_autograph_options=(
-        # tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS,
-        # tf.autograph.experimental.Feature.ASSERT_STATEMENTS,
-        tf.autograph.experimental.Feature.BUILTIN_FUNCTIONS,
-        # tf.autograph.experimental.Feature.EQUALITY_OPERATORS,
-        # tf.autograph.experimental.Feature.LISTS
-    ),
-)
 def iterate(
     X,
     Alice, Bob, Eve,
@@ -187,8 +175,7 @@ def iterate(
     tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
             false_fn=lambda: None, name='tb-keys-ivs')
 
-
-    if getenv('MLENCRYPT_TB', 'FALSE') != 'TRUE':
+    if getenv('MLENCRYPT_BARE', 'FALSE') != 'TRUE':
         score.assign(
             100. * sync_score(
                 Alice.w, Bob.w,
@@ -213,15 +200,13 @@ def iterate(
     current_update_rules = (update_rule_A, update_rule_B, update_rule_E)
     if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
         tf.print(
-            "Update rule = ", current_update_rules, " / ",
-            nb_updates, " Updates (Alice) / ",
-            nb_eve_updates, " Updates (Eve)",
+            "Update rules = ", current_update_rules,
             sep='',
             name='log-iteration'
         )
     else:
         tf.print(
-            "Update rule = ", current_update_rules, " / "
+            "Update rules = ", current_update_rules, " / "
             "A-B Synchronization = ", score, "% / ",
             "A-E Synchronization = ", score_eve, "% / ",
             nb_updates, " Updates (Alice) / ",
@@ -302,21 +287,32 @@ def run(
         #     # on non-first call.
         #     pass
 
+        auto_cont_deps = tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS
+
+        autograph_exclude = [feature for feature in (
+            None if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE'
+            else auto_cont_deps,
+            tf.autograph.experimental.Feature.NAME_SCOPES,
+        ) if feature is not None]
+
+        autograph_features = tf.autograph.experimental.Feature.all_but(
+            autograph_exclude)
+
+        @tf.function(
+            experimental_autograph_options=autograph_features,
+            experimental_relax_shapes=True,
+        )
         def train_step():
             # Create random vector, X, with dimensions [K, N] and values
             # bound by [-1, 1]
-            X = tf.Variable(
-                tf.random.uniform(
-                    (K, N), minval=-1, maxval=1 + 1, dtype=tf.int32),
-                trainable=False,
-                name='input'
-            )
+            X = tf.random.uniform(
+                (K, N), minval=-1, maxval=1 + 1, dtype=tf.int32)
 
-            tpm_update_rules = tf.guarantee_const([
+            tpm_update_rules = [
                 'hebbian',
                 'anti_hebbian',
                 'random_walk'
-            ])
+            ]
 
             if update_rule == 'random-same':
                 # use tf.random so that the same update rule is used for
@@ -346,15 +342,34 @@ def run(
                 elif update_rule == 'random-different-A-B':
                     update_rule_E = update_rule_A
                 else:
-                    raise ValueError
-            elif update_rule in tpm_update_rules:
+                    raise ValueError(
+                        f"'{update_rule}' is an invalid update rule. "
+                        "Valid update rules are: "
+                        "'hebbian', "
+                        "'anti_hebbian', "
+                        "'random_walk', "
+                        "'random-same', "
+                        "'random-different-A-B', and "
+                        "'random-different-A-B-E'"
+                    )
+            # elif tf.reduce_any(tf.math.equal(update_rule, tpm_update_rules)):
+            elif not isinstance(tpm_update_rules, tf.Tensor) and \
+                    update_rule in tpm_update_rules:
                 current_update_rule = tf.guarantee_const(update_rule)
                 update_rule_A = current_update_rule
                 update_rule_B = current_update_rule
                 update_rule_E = current_update_rule
             else:
-                # TODO: better message for ValueError
-                raise ValueError
+                raise ValueError(
+                    f"'{update_rule}' is an invalid update rule. "
+                    "Valid update rules are: "
+                    "'hebbian', "
+                    "'anti_hebbian', "
+                    "'random_walk', "
+                    "'random-same', "
+                    "'random-different-A-B', and "
+                    "'random-different-A-B-E'"
+                )
             iterate(
                 X,
                 Alice, Bob, Eve,
@@ -367,7 +382,7 @@ def run(
 
         # instead of while, use for until L^4*K*N and break
         start_time = perf_counter()
-        while not (Alice.w.numpy() == Bob.w.numpy()).all():
+        while not tf.reduce_all(tf.math.equal(Alice.w, Bob.w)):
             train_step()
 
         end_time = perf_counter()
@@ -380,8 +395,7 @@ def run(
         #  ^^^^^^^^ scalars have shape []
         key_length = tf.guarantee_const(key_length)
         iv_length = tf.guarantee_const(iv_length)
-        if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE' or \
-                getenv('MLENCRYPT_TB', 'FALSE') != 'TRUE':
+        if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
             if attack == 'probabilistic':
                 eve_w = Eve.mpW
             else:
@@ -390,6 +404,7 @@ def run(
                 100. * sync_score(Alice.w, eve_w, Alice.name, Eve.name),
                 name='calc-sync-A-E'
             )
+
             tf.print(
                 "\n\n",
                 "Training time = ", training_time, " seconds.\n",
@@ -397,15 +412,23 @@ def run(
                 name='log-run-final'
             )
         else:
-            tf.print(
-                "\n\n",
-                "Training time = ", training_time, " seconds.\n",
-                "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
-                "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
-                "Eve's key: ", Eve.key, " iv: ", Eve.iv,
-                sep='',
-                name='log-run-final'
-            )
+            if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
+                tf.print(
+                    "\n\n",
+                    "Training time = ", training_time, " seconds.\n",
+                    "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
+                    "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
+                    "Eve's key: ", Eve.key, " iv: ", Eve.iv,
+                    sep='',
+                    name='log-run-final'
+                )
+            else:
+                tf.print(
+                    "\n\n",
+                    "Training time = ", training_time, " seconds.\n",
+                    sep='',
+                    name='log-run-final'
+                )
         if tf.math.equal(getenv('MLENCRYPT_TB', 'FALSE'), 'TRUE', name='log-tb'):
             # create scatterplots (in scalars dashboard) of metric vs steps
             tf.summary.scalar('training_time', training_time)

@@ -3,7 +3,7 @@ import mlencrypt_research.update_rules.basic
 import mlencrypt_research.update_rules.probabilistic
 
 import hashlib
-from os import environ
+from os import getenv
 
 import tensorflow as tf
 import seaborn as sns
@@ -73,7 +73,13 @@ def tb_heatmap(name, data, xaxis, yaxis, unique=True, scope=None):
         # results, image summaries for weights were not logged and the script
         # was not run with XLA.
         pixels = tf.numpy_function(create_heatmap, inp, tf.uint8)
-        tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
+        try:
+            tf.summary.image('heatmap', tf.expand_dims(pixels, 0))
+        except TypeError:
+            # Expected string, got
+            # <tf.Tensor 'EmptyTensorList:0' shape=() dtype=variant> of type
+            # 'Tensor' instead.
+            pass
     return scope
 
 
@@ -98,7 +104,7 @@ def create_boxplot(ylabel, data, xaxis):
 def tb_boxplot(scope_name, data, xaxis, unique=True, scope=None, ylabel=None):
     # if ylabel is None, then use scope_name, else use the given ylabel:
     ylabel = scope_name if not ylabel else ylabel
-    scope_name = scope_name+"/" if (not scope_name.endswith('/') and unique) \
+    scope_name = f'{scope_name}/' if (not scope_name.endswith('/') and unique) \
         else scope_name
     with tf.name_scope(scope if scope else scope_name) as scope:
         inp = [ylabel, tf.transpose(data), xaxis]
@@ -111,7 +117,13 @@ def tb_boxplot(scope_name, data, xaxis, unique=True, scope=None, ylabel=None):
         # results, image summaries for weights were not logged and the script
         # was not run with XLA.
         pixels = tf.numpy_function(create_boxplot, inp, tf.uint8)
-        tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
+        try:
+            tf.summary.image('boxplot', tf.expand_dims(pixels, 0))
+        except TypeError:
+            # Expected string, got
+            # <tf.Tensor 'EmptyTensorList:0' shape=() dtype=variant> of type
+            # 'Tensor' instead.
+            pass
     return scope
 
 
@@ -189,7 +201,7 @@ class TPM(tf.Module):
             # self.sigma.assign(sigma)
             self.sigma.assign(nonzero)
             self.tau.assign(tau)
-            if environ['MLENCRYPT_TB'] == 'TRUE':
+            if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
                 tf.summary.scalar('tau', self.tau)
 
         return tau
@@ -249,7 +261,7 @@ class TPM(tf.Module):
                         "'anti_hebbian' and "
                         "'random_walk'."
                     )
-            if environ["MLENCRYPT_TB"] == 'TRUE':
+            if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
                 with tf.name_scope(self.name):
                     try:
                         with tf.experimental.async_scope():

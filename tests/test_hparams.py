@@ -12,7 +12,7 @@ def test_hparams():
 
         result = runner.invoke(
             cli.cli,
-            ['hparams', 'nevergrad', '-n', '2'],
+            ['hparams', 'nevergrad', '-n', '2', '-b'],
             catch_exceptions=False
         )
         assert result.exit_code == 0

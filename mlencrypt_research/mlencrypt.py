@@ -105,7 +105,7 @@ def select_random_from_list(input_list, op_name=None):
         dtype=tf.int32,
         name=op_name
     )
-    return input_list[index]
+    return tf.constant(input_list)[index]
 
 
 def iterate(
@@ -318,27 +318,27 @@ def run(
                 # use tf.random so that the same update rule is used for
                 # each iteration across attacks
 
-                current_update_rule = tf.constant(select_random_from_list(
+                current_update_rule = select_random_from_list(
                     tpm_update_rules,
                     op_name='iteration-ur-A-B-E'
-                ))
+                )
                 update_rule_A = current_update_rule
                 update_rule_B = current_update_rule
                 update_rule_E = current_update_rule
             elif update_rule.startswith('random-different'):
-                update_rule_A = tf.constant(select_random_from_list(
+                update_rule_A = select_random_from_list(
                     tpm_update_rules,
                     op_name='iteration-ur-A'
-                ))
-                update_rule_B = tf.constant(select_random_from_list(
+                )
+                update_rule_B = select_random_from_list(
                     tpm_update_rules,
                     op_name='iteration-ur-B'
-                ))
+                )
                 if update_rule == 'random-different-A-B-E':
-                    update_rule_E = tf.constant(select_random_from_list(
+                    update_rule_E = select_random_from_list(
                         tpm_update_rules,
                         op_name='iteration-ur-E'
-                    ))
+                    )
                 elif update_rule == 'random-different-A-B':
                     update_rule_E = update_rule_A
                 else:

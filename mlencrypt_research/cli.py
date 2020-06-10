@@ -83,13 +83,13 @@ def cli():
     show_default=True,
 )
 @click.option(
-    '-K', '--K', default=8, show_default=True, type=int,
+    '-k', '--K', default=8, show_default=True, type=int,
 )
 @click.option(
-    '-N', '--N', default=12, show_default=True, type=int,
+    '-n', '--N', default=12, show_default=True, type=int,
 )
 @click.option(
-    '-L', '--L', default=4, show_default=True, type=int,
+    '-l', '--L', default=4, show_default=True, type=int,
 )
 @click.option(
     '-a', '--attack',
@@ -183,13 +183,13 @@ def single(
     show_default=True,
 )
 @click.option(
-    '-K', '--K', default=8, show_default=True, type=int,
+    '-k', '--K', default=8, show_default=True, type=int,
 )
 @click.option(
-    '-N', '--N', default=12, show_default=True, type=int,
+    '-n', '--N', default=12, show_default=True, type=int,
 )
 @click.option(
-    '-L', '--L', default=4, show_default=True, type=int,
+    '-l', '--L', default=4, show_default=True, type=int,
 )
 @click.option(
     '-a', '--attack',

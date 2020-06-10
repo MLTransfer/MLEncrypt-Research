@@ -71,7 +71,7 @@ def sync_score(tpm1_w, tpm2_w, tpm1_name, tpm2_name):
         # repulsive step occurs if two corresponding hidden units have
         # different sigma (Ruttor, 2006).
         epsilon = tf.math.multiply(
-            tf.guarantee_const(1. / pi, name='reciprocal-pi'),
+            tf.guarantee_const(tf.constant(1. / pi), name='reciprocal-pi'),
             tf.bitcast(
                 tf.math.acos(rho, name=f'angle-{tpm1_id}-{tpm2_id}'),
                 tf.float32,
@@ -118,21 +118,12 @@ def iterate(
 ):
     tf.summary.experimental.set_step(nb_updates)
 
-    log_tb = tf.math.equal(
-        tf.guarantee_const(getenv('MLENCRYPT_TB', 'FALSE'), name='setting-tb'),
-        tf.guarantee_const('TRUE', name='true'),
-        name='use-tb'
-    )
-
-    def log_inputs():
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
         tb_summary('inputs', X)
         K, N = Alice.K, Alice.N
         hpaxis, ipaxis = tf.range(1, K + 1), tf.range(1, N + 1)
         tb_heatmap('inputs', X, ipaxis, hpaxis)
         tb_boxplot('inputs', X, hpaxis)
-
-    tf.cond(log_tb, true_fn=log_inputs,
-            false_fn=lambda: None, name='tb-inputs')
 
     # compute outputs of TPMs
     tauA = Alice.get_output(X)
@@ -162,18 +153,13 @@ def iterate(
         Eve.update(tauA, updated_A_B)
         nb_eve_updates.assign_add(1, name='updates-E-increment')
 
-    def log_updates_E():
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
         tf.summary.scalar('updates-E', data=nb_eve_updates)
-    tf.cond(log_tb, true_fn=log_updates_E,
-            false_fn=lambda: None, name='tb-updates-E')
 
-    def compute_and_log_keys_and_ivs():
+    if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
         Alice_key, Alice_iv = Alice.compute_key(key_length, iv_length)
         Bob_key, Bob_iv = Bob.compute_key(key_length, iv_length)
         Eve_key, Eve_iv = Eve.compute_key(key_length, iv_length)
-
-    tf.cond(log_tb, true_fn=compute_and_log_keys_and_ivs,
-            false_fn=lambda: None, name='tb-keys-ivs')
 
     if getenv('MLENCRYPT_BARE', 'FALSE') != 'TRUE':
         score.assign(
@@ -221,7 +207,7 @@ def run(
     update_rule, K, N, L,
     attack,
     initial_weights,
-    key_length=tf.guarantee_const(256), iv_length=tf.guarantee_const(128)
+    key_length=256, iv_length=128
 ):
     with tf.experimental.async_scope():
 
@@ -393,8 +379,8 @@ def run(
             score_eve / 100.
         ], shape=[], tensor_dtype=tf.float32) / 2.
         #  ^^^^^^^^ scalars have shape []
-        key_length = tf.guarantee_const(key_length)
-        iv_length = tf.guarantee_const(iv_length)
+        key_length = tf.guarantee_const(tf.constant(key_length))
+        iv_length = tf.guarantee_const(tf.constant(iv_length))
         if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
             if attack == 'probabilistic':
                 eve_w = Eve.mpW

@@ -30,7 +30,7 @@ def hebbian(W, X, sigma, tau1, tau2, l):
 
     def update_neuron(index_2d):
         i, j = indices_from_2d(index_2d, k)
-        # assume that anti_hebbian is only called if tau1 equals tau2, so don't
+        # assume that hebbian is only called if tau1 equals tau2, so don't
         # multiply by theta(tau1, tau2):
         return X[i, j] * tau1 * theta(sigma[i], tau1)
     W_plus_vectorized = tf.map_fn(update_neuron, indices_2d)
@@ -70,7 +70,7 @@ def random_walk(W, X, sigma, tau1, tau2, l):
 
     def update_neuron(index_2d):
         i, j = indices_from_2d(index_2d, k)
-        # assume that anti_hebbian is only called if tau1 equals tau2, so don't
+        # assume that random_walk is only called if tau1 equals tau2, so don't
         # multiply by theta(tau1, tau2):
         return X[i, j] * theta(sigma[i], tau1)
     W_plus_vectorized = tf.map_fn(update_neuron, indices_2d)

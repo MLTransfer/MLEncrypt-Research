@@ -311,14 +311,17 @@ description = "Google Authentication Library"
 name = "google-auth"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
-version = "1.16.1"
+version = "1.17.2"
 
 [package.dependencies]
 cachetools = ">=2.0.0,<5.0"
 pyasn1-modules = ">=0.2.1"
-rsa = ">=3.1.4,<4.1"
 setuptools = ">=40.3.0"
 six = ">=1.9.0"
+
+[package.dependencies.rsa]
+python = ">=3"
+version = ">=3.1.4,<5"
 
 [[package]]
 category = "main"
@@ -454,7 +457,7 @@ SparkTrials = ["pyspark"]
 dev = ["black", "pre-commit", "nose", "pytest"]
 
 [package.source]
-reference = "243d6bf17b40db05742a2e431ccdc7f830af81e3"
+reference = "686a0844d7b763312370d63cb0c5083d6b6aa61a"
 type = "git"
 url = "https://github.com/hyperopt/hyperopt.git"
 [[package]]
@@ -1020,10 +1023,11 @@ rsa = ["oauthlib (>=3.0.0)"]
 [[package]]
 category = "main"
 description = "Pure-Python RSA implementation"
+marker = "python_version >= \"3\""
 name = "rsa"
 optional = false
-python-versions = "*"
-version = "4.0"
+python-versions = ">=3.5, <4"
+version = "4.6"
 
 [package.dependencies]
 pyasn1 = ">=0.1.3"
@@ -1608,8 +1612,8 @@ google = [
     {file = "google-2.0.3.tar.gz", hash = "sha256:ff7d997dbf33be666ed5deb8c5abf5d103c27ec199559b6d994923469e26bb48"},
 ]
 google-auth = [
-    {file = "google-auth-1.16.1.tar.gz", hash = "sha256:2f1a6bc3031fc7cd0c1aeb225ad34febcb60268f71f5df75d5976dd20a52c002"},
-    {file = "google_auth-1.16.1-py2.py3-none-any.whl", hash = "sha256:c041ffe8887fda3b040b39700d839fe38260c281ee11dbf6627978e21c99a626"},
+    {file = "google-auth-1.17.2.tar.gz", hash = "sha256:e634b649967d83c02dd386ecae9ce4a571528d59d51a4228757e45f5404a060b"},
+    {file = "google_auth-1.17.2-py2.py3-none-any.whl", hash = "sha256:25d3c4e457db5504c62b3e329e8e67d2c29a0cecec3aa5347ced030d8700a75d"},
 ]
 google-auth-oauthlib = [
     {file = "google-auth-oauthlib-0.4.1.tar.gz", hash = "sha256:88d2cd115e3391eb85e1243ac6902e76e77c5fe438b7276b297fbe68015458dd"},
@@ -2042,8 +2046,8 @@ requests-oauthlib = [
     {file = "requests_oauthlib-1.3.0-py3.7.egg", hash = "sha256:fa6c47b933f01060936d87ae9327fead68768b69c6c9ea2109c48be30f2d4dbc"},
 ]
 rsa = [
-    {file = "rsa-4.0-py2.py3-none-any.whl", hash = "sha256:14ba45700ff1ec9eeb206a2ce76b32814958a98e372006c8fb76ba820211be66"},
-    {file = "rsa-4.0.tar.gz", hash = "sha256:1a836406405730121ae9823e19c6e806c62bbad73f890574fff50efa4122c487"},
+    {file = "rsa-4.6-py2.py3-none-any.whl", hash = "sha256:23778f5523461cf86ae075f9482a99317f362bca752ae57cb118044066f4026f"},
+    {file = "rsa-4.6.tar.gz", hash = "sha256:109ea5a66744dd859bf16fe904b8d8b627adafb9408753161e766a92e7d681fa"},
 ]
 scikit-learn = [
     {file = "scikit-learn-0.23.1.tar.gz", hash = "sha256:e3fec1c8831f8f93ad85581ca29ca1bb88e2da377fb097cf8322aa89c21bc9b8"},

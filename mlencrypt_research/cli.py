@@ -66,6 +66,7 @@ def cli():
         'auto_mixed_precision': False,
         'disable_meta_optimizer': False
     })
+    tfconfig.set_visible_devices([], 'GPU')
 
 
 @cli.command(name='single')

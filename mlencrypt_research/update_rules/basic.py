@@ -18,6 +18,7 @@ def theta(t1, t2):
 
 
 def indices_from_2d(index_2d, k):
+    # see https://www.tensorflow.org/api_docs/python/tf/unravel_index
     return tf.math.floormod(index_2d, k), tf.math.floordiv(index_2d, k)
 
 

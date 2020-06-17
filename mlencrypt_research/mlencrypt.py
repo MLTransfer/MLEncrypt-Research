@@ -7,7 +7,7 @@ from time import perf_counter
 from importlib import import_module
 
 import tensorflow as tf
-from math import pi
+from numpy import pi
 
 
 @tf.function(

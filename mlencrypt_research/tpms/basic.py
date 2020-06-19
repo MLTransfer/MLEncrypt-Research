@@ -2,7 +2,7 @@ import tensorflow as tf
 from os import getenv
 from hashlib import sha512
 import mlencrypt_research.update_rules.basic
-from .summaries import tb_summary, tb_heatmap, tb_boxplot
+from ..summaries import tb_summary, tb_heatmap, tb_boxplot
 
 autograph_features = tf.autograph.experimental.Feature.all_but(
     tf.autograph.experimental.Feature.NAME_SCOPES)

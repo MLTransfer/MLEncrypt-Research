@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from mlencrypt_research.tpms import TPM
-from mlencrypt_research.tpms import tb_summary, tb_heatmap, tb_boxplot
+from mlencrypt_research.summaries import tb_summary, tb_heatmap, tb_boxplot
 
 from os import getenv
 from time import perf_counter

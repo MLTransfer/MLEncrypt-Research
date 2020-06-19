@@ -1,6 +1,8 @@
+.DS_Store
+.idea/
+
 notes.txt
 
-.DS_Store
 logs/
 ray_results/
 output.csv

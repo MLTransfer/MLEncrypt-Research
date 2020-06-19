@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from mlencrypt_research.tpm import TPM
-from mlencrypt_research.tpm import tb_summary, tb_heatmap, tb_boxplot
+from mlencrypt_research.tpms import TPM
+from mlencrypt_research.tpms import tb_summary, tb_heatmap, tb_boxplot
 
 from os import getenv
 from time import perf_counter
@@ -225,7 +225,7 @@ def run(
         Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
         # TODO: don't reimport entire file:
-        tpm_mod = import_module('mlencrypt_research.tpm')
+        tpm_mod = import_module('mlencrypt_research.tpms')
         if attack == 'probabilistic':
             Eve_class_name = 'ProbabilisticTPM'
         elif attack == 'geometric':

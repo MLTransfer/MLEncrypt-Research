@@ -650,7 +650,10 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     elif scheduler == 'msr':
         from ray.tune.schedulers import MedianStoppingRule
         sched = MedianStoppingRule(metric="mean_loss", mode="min")
-    init_ray()
+    init_ray(
+        address=getenv("ip_head"),
+        redis_password=getenv('redis_password'),
+    )
     analysis = tune.run(
         trainable,
         name='mlencrypt_research',

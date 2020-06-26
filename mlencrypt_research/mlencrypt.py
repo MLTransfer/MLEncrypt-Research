@@ -186,7 +186,9 @@ def iterate(
     current_update_rules = (update_rule_A, update_rule_B, update_rule_E)
     if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
         tf.print(
-            "Update rules = ", current_update_rules,
+            "Update rules = ", current_update_rules, " / ",
+            nb_updates, " Updates (Alice) / ",
+            nb_eve_updates, " Updates (Eve)",
             sep='',
             name='log-iteration'
         )
@@ -273,16 +275,10 @@ def run(
         #     # on non-first call.
         #     pass
 
-        auto_cont_deps = tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS
-
-        autograph_exclude = [feature for feature in (
-            None if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE'
-            else auto_cont_deps,
+        autograph_features = tf.autograph.experimental.Feature.all_but([
+            tf.autograph.experimental.Feature.AUTO_CONTROL_DEPS,
             tf.autograph.experimental.Feature.NAME_SCOPES,
-        ) if feature is not None]
-
-        autograph_features = tf.autograph.experimental.Feature.all_but(
-            autograph_exclude)
+        ])
 
         @tf.function(
             experimental_autograph_options=autograph_features,
@@ -366,19 +362,20 @@ def run(
             )
             tf.summary.experimental.set_step(nb_updates)
 
-        # instead of while, use for until L^4*K*N and break
-        start_time = perf_counter()
+        # In the long run, perf_counter doesn't help because different CPUs
+        # have different performance. For the sake of prosperity, we use the
+        # number of training steps, although training time would be more useful
+        # in a practical setting.
+        # start_time = perf_counter()
         while not tf.reduce_all(tf.math.equal(Alice.w, Bob.w)):
+            # TODO: instead of while, use for until L^4*K*N and break
             train_step()
 
-        end_time = perf_counter()
-        training_time = end_time - start_time
+        # end_time = perf_counter()
+        # training_time = end_time - start_time
         # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
-        loss = tf.math.accumulate_n([
-            tf.math.log(training_time),
-            score_eve / 100.
-        ], shape=[], tensor_dtype=tf.float32) / 2.
-        #  ^^^^^^^^ scalars have shape []
+        # for reference, log(120) = 2.08 and log(43000) = 4.63
+        loss = tf.math.log(nb_updates) * score_eve / 100.
         key_length = tf.guarantee_const(tf.constant(key_length))
         iv_length = tf.guarantee_const(tf.constant(iv_length))
         if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':

@@ -9,10 +9,7 @@ from tensorflow import Variable as tfVariable
 
 
 def get_initial_weights(K, N, L):
-    from tensorflow import (
-        random as tfrandom,
-        int32 as tfint32
-    )
+    from tensorflow import random as tfrandom, int32 as tfint32
     return {
         'Alice': tfrandom.uniform(
             (K, N),

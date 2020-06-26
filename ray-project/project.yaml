@@ -4,7 +4,7 @@ name: mlencrypt-research
 
 # description: A short description of the project.
 # The URL of the repo this project is part of.
-repo: b'git@github.com:MLTransfer/MLEncrypt-Research.git'
+repo: git@github.com:MLTransfer/MLEncrypt-Research.git
 
 cluster:
   config: ray-project/cluster.yaml

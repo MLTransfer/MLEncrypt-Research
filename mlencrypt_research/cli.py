@@ -325,7 +325,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
 
     import tensorflow.summary
     from tensorflow import random as tfrandom, int64 as tfint64
-    from ray import init as init_ray
+    from ray import init as init_ray, shutdown as shutdown_ray
     from ray import tune
     from wandb.ray import WandbLogger
     from wandb import sweep as wandbsweep
@@ -684,6 +684,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         pass
     best_config = analysis.get_best_config(metric='mean_loss', mode='min')
     print(f"Best config: {best_config}")
+    shutdown_ray()
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ from mlencrypt_research.tpms import TPM
 from mlencrypt_research.summaries import tb_summary, tb_heatmap, tb_boxplot
 
 from os import getenv
-from time import perf_counter
+# from time import perf_counter
 from importlib import import_module
 
 import tensorflow as tf
@@ -375,10 +375,11 @@ def run(
         # training_time = end_time - start_time
         # loss = (tf.math.sigmoid(training_time) + score_eve / 100.) / 2.
         # for reference, log(120) = 2.08 and log(43000) = 4.63
-        loss = tf.math.log(nb_updates) * score_eve / 100.
+        loss = tf.math.log(tf.cast(nb_updates, tf.float32)) * score_eve / 100.
         key_length = tf.guarantee_const(tf.constant(key_length))
         iv_length = tf.guarantee_const(tf.constant(iv_length))
         if getenv('MLENCRYPT_BARE', 'FALSE') == 'TRUE':
+            # because score_eve hasn't been calculated yet in bare mode
             if attack == 'probabilistic':
                 eve_w = Eve.mpW
             else:
@@ -387,35 +388,20 @@ def run(
                 100. * sync_score(Alice.w, eve_w, Alice.name, Eve.name),
                 name='calc-sync-A-E'
             )
-
-            tf.print(
-                "\n\n",
-                "Training time = ", training_time, " seconds.\n",
-                sep='',
-                name='log-run-final'
-            )
         else:
             if getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE':
                 tf.print(
                     "\n\n",
-                    "Training time = ", training_time, " seconds.\n",
                     "Alice's key: ", Alice.key, " iv: ", Alice.iv, "\n",
                     "Bob's key: ", Bob.key, " iv: ", Bob.iv, "\n",
                     "Eve's key: ", Eve.key, " iv: ", Eve.iv,
                     sep='',
                     name='log-run-final'
                 )
-            else:
-                tf.print(
-                    "\n\n",
-                    "Training time = ", training_time, " seconds.\n",
-                    sep='',
-                    name='log-run-final'
-                )
         if tf.math.equal(getenv('MLENCRYPT_TB', 'FALSE'), 'TRUE', name='log-tb'):
             # create scatterplots (in scalars dashboard) of metric vs steps
-            tf.summary.scalar('training_time', training_time)
+            # tf.summary.scalar('training_time', training_time)
             tf.summary.scalar('eve_score', score_eve)
             tf.summary.scalar('loss', loss)
 
-    return training_time, score_eve, loss
+    return nb_updates, score_eve, loss

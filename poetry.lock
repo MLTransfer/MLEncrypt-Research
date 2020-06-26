@@ -460,6 +460,7 @@ dev = ["black", "pre-commit", "nose", "pytest"]
 reference = "abf6718951eecc1c43d591f59da321f2de5a8cbf"
 type = "git"
 url = "https://github.com/hyperopt/hyperopt.git"
+
 [[package]]
 category = "main"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -1486,7 +1487,7 @@ matplotlib = "*"
 numpy = "*"
 
 [metadata]
-content-hash = "ce076d5943fa689c59386808406ac448449cc1727ee4663ae8d90ec4eae242f8"
+content-hash = "3117abe367b24764e9286149f1e41f54f6a7692b71afbc9eeefbaa1d6e263c33"
 python-versions = "^3.6.1"
 
 [metadata.files]

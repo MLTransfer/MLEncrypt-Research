@@ -9,7 +9,7 @@ python = "^3.6.1"
 numpy = "^1.18.4"
 seaborn = "^0.10.1"
 tensorflow = "^2.2.0"
-setuptools = "41.0.1"
+setuptools = ">=41.0.0"
 click = "^7.1.2"
 ray = {extras = ["tune"], version = "^0.8.5"}
 hyperopt = {git = "https://github.com/hyperopt/hyperopt.git"}

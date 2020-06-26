@@ -231,7 +231,7 @@ def multiple(
 
     losses_writer = csv_writer(output_file)
     losses_writer.writerow([
-        'training time (s)',
+        'training steps',
         'synchronization score (%)',
         'loss'
     ])
@@ -259,7 +259,7 @@ def multiple(
             with tensorflow.summary.create_file_writer(
                 logdir
             ).as_default():
-                training_time, sync_score, loss = run(
+                training_steps, sync_score, loss = run(
                     update_rule, k, n, l,
                     attack,
                     initial_weights,
@@ -268,14 +268,14 @@ def multiple(
                 tensorflow.summary.trace_export("graph")
                 tensorflow.profiler.experimental.stop()
         else:
-            training_time, sync_score, loss = run(
+            training_steps, sync_score, loss = run(
                 update_rule, k, n, l,
                 attack,
                 initial_weights,
                 key_length=key_length, iv_length=iv_length
             )
         losses_writer.writerow([
-            training_time,
+            training_steps.numpy(),
             sync_score.numpy(),
             loss.numpy(),
         ])
@@ -304,7 +304,7 @@ def multiple(
         [
             'fifo',
             'pbt',
-            'ahb',
+            'ahb', 'asha',
             'hb',
             'bohb',
             'smr',
@@ -388,7 +388,9 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         run_logdir = join(logdir, run_name)
         # for each attack, the TPMs should start with the same weights
         initial_weights_tensors = get_initial_weights(K, N, L)
-        run_training_times, run_eve_scores, run_losses = {}, {}, {}
+        training_steps_ls = {}
+        eve_scores_ls = {}
+        losses_ls = {}
         # for each attack, the TPMs should use the same inputs
         seed = tfrandom.uniform(
             [], minval=0, maxval=tfint64.max, dtype=tfint64).numpy()
@@ -404,29 +406,29 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
                 attack_writer = tensorflow.summary.create_file_writer(
                     attack_logdir)
                 with attack_writer.as_default():
-                    training_times, sync_scores, losses = run(
+                    training_steps, sync_scores, loss = run(
                         update_rule, K, N, L,
                         attack,
                         initial_weights
                     )
             else:
-                training_times, sync_scores, losses = run(
+                training_steps, sync_scores, loss = run(
                     update_rule, K, N, L,
                     attack,
                     initial_weights
                 )
-            run_training_times[attack] = training_times
-            run_eve_scores[attack] = sync_scores
-            run_losses[attack] = losses
-        avg_training_time = tensorflow.math.reduce_mean(
-            list(run_training_times.values()))
+            training_steps_ls[attack] = training_steps
+            eve_scores_ls[attack] = sync_scores
+            losses_ls[attack] = loss
+        avg_training_steps = tensorflow.math.reduce_mean(
+            list(training_steps_ls.values()))
         avg_eve_score = tensorflow.math.reduce_mean(
-            list(run_eve_scores.values()))
-        avg_loss = tensorflow.math.reduce_mean(list(run_losses.values()))
+            list(eve_scores_ls.values()))
+        mean_loss = tensorflow.math.reduce_mean(list(losses_ls.values()))
         reporter(
-            avg_training_time=avg_training_time.numpy(),
+            avg_training_steps=avg_training_steps.numpy(),
             avg_eve_score=avg_eve_score.numpy(),
-            avg_loss=avg_loss.numpy(),
+            mean_loss=mean_loss.numpy(),
             done=True,
         )
 
@@ -445,7 +447,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         }
         algo = HyperOptSearch(
             space,
-            metric='avg_loss',
+            metric='mean_loss',
             mode='min',
             points_to_evaluate=[
                 {'update_rule': 0, 'K': 3, 'N': 16, 'L': 8},
@@ -464,7 +466,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         }
         algo = BayesOptSearch(
             space,
-            metric="avg_loss",
+            metric="mean_loss",
             mode="min",
             # TODO: what is utility_kwargs for and why is it needed?
             utility_kwargs={
@@ -494,8 +496,8 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
                     upper=L_bounds['max']
                 ).set_integer_casting(),
             )),
-            None,
-            metric="avg_loss",
+            None,  # since the optimizer is already instrumented with kwargs
+            metric="mean_loss",
             mode="min"
         )
     elif algorithm == 'skopt':
@@ -511,12 +513,12 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         algo = SkOptSearch(
             optimizer,
             ["update_rule", "K", "N", "L"],
-            metric="avg_loss",
+            metric="mean_loss",
             mode="min",
             points_to_evaluate=[
                 ['random-same', 3, 16, 8],
                 ['random-same', 8, 16, 8],
-                # ['random-same', 8, 16, 128],
+                ['random-same', 8, 16, 128],
             ],
         )
     elif algorithm == 'dragonfly':
@@ -564,12 +566,12 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         optimizer = EuclideanGPBandit(func_caller, ask_tell_mode=True)
         algo = DragonflySearch(
             optimizer,
-            metric="avg_loss",
+            metric="mean_loss",
             mode="min",
             points_to_evaluate=[
                 ['random-same', 3, 16, 8],
                 ['random-same', 8, 16, 8],
-                # ['random-same', 8, 16, 128],
+                ['random-same', 8, 16, 128],
             ],
         )
     elif algorithm == 'bohb':
@@ -586,7 +588,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
             name='N', lower=N_bounds['min'], upper=N_bounds['max']))
         config_space.add_hyperparameter(CSH.UniformIntegerHyperparameter(
             name='L', lower=L_bounds['min'], upper=L_bounds['max']))
-        algo = TuneBOHB(config_space, metric="avg_loss", mode="min")
+        algo = TuneBOHB(config_space, metric="mean_loss", mode="min")
     elif algorithm == 'zoopt':
         from ray.tune.suggest.zoopt import ZOOptSearch
         from zoopt import ValueType
@@ -617,7 +619,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         algo = ZOOptSearch(
             budget=10,
             dim_dict=space,
-            metric="avg_loss",
+            metric="mean_loss",
             mode="min"
         )
 
@@ -629,7 +631,7 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
         from ray.tune.schedulers import PopulationBasedTraining
         from random import randint
         sched = PopulationBasedTraining(
-            metric="avg_loss",
+            metric="mean_loss",
             mode="min",
             hyperparam_mutations={
                 "update_rule": update_rules,
@@ -638,18 +640,19 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
                 "L": lambda: randint(L_bounds['min'], L_bounds['max']),
             }
         )
-    elif scheduler == 'ahb':
+    elif scheduler == 'ahb' or scheduler == 'asha':
+        # https://docs.ray.io/en/latest/tune/api_docs/schedulers.html#asha-tune-schedulers-ashascheduler
         from ray.tune.schedulers import AsyncHyperBandScheduler
-        sched = AsyncHyperBandScheduler(metric="avg_loss", mode="min")
+        sched = AsyncHyperBandScheduler(metric="mean_loss", mode="min")
     elif scheduler == 'hb':
         from ray.tune.schedulers import HyperBandScheduler
-        sched = HyperBandScheduler(metric="avg_loss", mode="min")
+        sched = HyperBandScheduler(metric="mean_loss", mode="min")
     elif algorithm == 'bohb' or scheduler == 'bohb':
         from ray.tune.schedulers import HyperBandForBOHB
-        sched = HyperBandForBOHB(metric="avg_loss", mode="min")
+        sched = HyperBandForBOHB(metric="mean_loss", mode="min")
     elif scheduler == 'msr':
         from ray.tune.schedulers import MedianStoppingRule
-        sched = MedianStoppingRule(metric="avg_loss", mode="min")
+        sched = MedianStoppingRule(metric="mean_loss", mode="min")
     init_ray()
     analysis = tune.run(
         trainable,
@@ -682,7 +685,8 @@ def hparams(algorithm, scheduler, num_samples, tensorboard, bare):
     except wandbCommError:
         # see https://docs.wandb.com/sweeps/ray-tune#feature-compatibility
         pass
-    print("Best config: ", analysis.get_best_config(metric="avg_loss"))
+    best_config = analysis.get_best_config(metric='mean_loss', mode='min')
+    print(f"Best config: {best_config}")
 
 
 if __name__ == '__main__':

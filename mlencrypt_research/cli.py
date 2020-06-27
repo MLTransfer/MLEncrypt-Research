@@ -63,7 +63,21 @@ def cli():
         'auto_mixed_precision': False,
         'disable_meta_optimizer': False
     })
-    tfconfig.set_visible_devices([], 'GPU')
+
+    import horovod.tensorflow as hvd
+    # Initialize Horovod
+    hvd.init()
+
+    # Pin GPU to be used to process local rank (one GPU per process)
+    gpus = tfconfig.experimental.list_physical_devices('GPU')
+    for gpu in gpus:
+        tfconfig.experimental.set_memory_growth(gpu, True)
+    if gpus:
+        tfconfig.experimental.set_visible_devices(gpus[hvd.local_rank()], 'GPU')
+
+    # pin all ops to CPU
+    # tfconfig.set_visible_devices([], 'GPU')
+    # tfconfig.set_visible_devices([], 'TPU')
 
 
 @cli.command(name='single')

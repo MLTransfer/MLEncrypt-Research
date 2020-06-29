@@ -1,11 +1,77 @@
 import tensorflow as tf
-from os import getenv
 from hashlib import sha512
 from .basic import TPM
 import mlencrypt_research.update_rules.probabilistic
 
 autograph_features = tf.autograph.experimental.Feature.all_but(
     tf.autograph.experimental.Feature.NAME_SCOPES)
+
+
+# class DPDFWeight(tf.Module):
+#     def __init__(self, L, initial_probabilities=None):
+#         if not initial_probabilities:
+#             initial_probabilities = tf.constant(tf.fill(
+#                 [2 * L + 1],
+#                 tf.guarantee_const(tf.constant(1. / (2 * L + 1),
+#                                                tf.float16)),
+#             ))
+#         self.probs = tf.Variable(initial_probabilities, trainable=True)
+#         self.L = L
+#
+#     def sample(self):
+#         # https://github.com/brigan/NeuralCryptography/blob/dec94a21f5de316bd7a87e24f55af23eb146fccd/TPM.h#L944-L973
+#         rand = tf.random.uniform([])
+#         output = -self.L
+#         for prob in self.probs:
+#             if rand < prob:
+#                 break
+#             output += 1
+#             rand -= prob
+#
+#     def assign(self, new_probs):
+#         return self.probs.assign(new_probs)
+
+
+# class DPDFWeight2(tf.Variable):
+#     def __init__(self,
+#                  L,
+#                  initial_value=None,
+#                  trainable=None,
+#                  validate_shape=True,
+#                  caching_device=None,
+#                  name=None,
+#                  variable_def=None,
+#                  dtype=None,
+#                  import_scope=None,
+#                  constraint=None,
+#                  synchronization=tf.VariableSynchronization.AUTO,
+#                  aggregation=tf.VariableAggregation.NONE,
+#                  shape=None):
+#         self.L = L
+#         # https://github.com/tensorflow/tensorflow/blob/2b96f3662bd776e277f86997659e61046b56c315/tensorflow/python/ops/variables.py#L1339
+#         super(DPDFWeight, self)._OverloadAllOperators()
+#         super(DPDFWeight, self).__init__(initial_value=initial_value,
+#                                          trainable=trainable,
+#                                          validate_shape=validate_shape,
+#                                          caching_device=caching_device,
+#                                          name=name,
+#                                          variable_def=variable_def,
+#                                          dtype=dtype,
+#                                          import_scope=import_scope,
+#                                          constraint=constraint,
+#                                          synchronization=synchronization,
+#                                          aggregation=aggregation,
+#                                          shape=shape)
+#
+#     def sample(self):
+#         # https://github.com/brigan/NeuralCryptography/blob/dec94a21f5de316bd7a87e24f55af23eb146fccd/TPM.h#L944-L973
+#         rand = tf.random.uniform([])
+#         output = -self.L
+#         for prob in self.probs:
+#             if rand < prob:
+#                 break
+#             output += 1
+#             rand -= prob
 
 
 class ProbabilisticTPM(TPM):
@@ -17,21 +83,23 @@ class ProbabilisticTPM(TPM):
             distributions.
     """
 
-    def __init__(self, name, K, N, L, initial_weights):
-        import tensorflow_probability as tfp
-        super().__init__(name, K, N, L, initial_weights)
+    def __init__(self, name, K, N, L):
+        super().__init__(name, K, N, L, None)
         self.type = 'probabilistic'
         with self.name_scope:
             # sampling once from a multinomial distribution is the same as
             # sampling from a discrete probability density function
-            self.w = tfp.distributions.OneHotCategorical(
-                probs=tf.fill(
-                    [K, N, 2 * L + 1],
-                    tf.guarantee_const(tf.constant(
-                        1. / (2 * L + 1), tf.float16)),
-                ),
-                validate_args=getenv('MLENCRYPT_TB', 'FALSE') == 'TRUE',
+            initial_weights = tf.fill(
+                [K, N, 2 * L + 1],
+                tf.guarantee_const(tf.constant(
+                    1. / (2 * L + 1), tf.float16)),
             )
+            # initial_weights = tf.random.uniform(
+            #     (self.K, self.N, 2*self.L+1),
+            #     dtype=tf.float16
+            # )
+            self.w = tf.Variable(initial_weights, trainable=True)
+            # self.normalize_weights()
             self.mpW = tf.Variable(
                 tf.zeros([K, N], dtype=tf.int32),
                 # trainable=True
@@ -49,24 +117,44 @@ class ProbabilisticTPM(TPM):
     def get_expected_weights(self):
         def get_expected_weight(dpdf):
             # tf.size(dpdf) should be 2*L+1
-            eW_ij = tf.math.reduce_mean(tf.map_fn(
-                # dpdf[x] gives probability of corresponding weight
-                # self.index_to_weight(x) gives corresponding weight
-                lambda x: dpdf[x] * tf.cast(self.index_to_weight(x),
-                                            tf.float16),
-                tf.range(tf.size(dpdf)),  # indices
-                dtype=tf.float16
-            ))
-            return eW_ij
+            corresponding_weights = tf.range(-self.L, self.L + 1, delta=1.)
+            return tf.math.reduce_mean(dpdf * tf.cast(corresponding_weights, dtype=dpdf.dtype))
         self.eW.assign(tf.reshape(
             tf.map_fn(
-                get_expected_weight,
-                tf.reshape(self.w.probs_parameter(),
-                           (self.K * self.N, 2 * self.L + 1)),
+                lambda wi: tf.map_fn(
+                    # lambda wij: get_expected_weight(wij)
+                    get_expected_weight,
+                    wi,
+                ),
+                self.w
             ),
-            (self.K, self.N)
+            (self.K, self.N),
         ))
         return self.eW
+
+    def sample(self):
+        # https://github.com/brigan/NeuralCryptography/blob/dec94a21f5de316bd7a87e24f55af23eb146fccd/TPM.h#L944-L973
+        current_sample_rows = tf.TensorArray(tf.int32, size=self.K)
+        for index_k in tf.range(self.K):
+            current_sample_cols = tf.TensorArray(tf.int32, size=self.N)
+            for index_n in tf.range(self.N):
+                # float scalar bound by [0, 1):
+                rand = tf.random.uniform([], dtype=self.w.dtype)
+                sampled_value = -self.L
+                for prob in self.w[index_k][index_n]:
+                    if rand < prob:
+                        break
+                    sampled_value += 1
+                    rand -= prob
+                current_sample_cols = current_sample_cols.write(
+                    index_n,
+                    sampled_value,
+                )
+            current_sample_rows = current_sample_rows.write(
+                index_k, current_sample_cols.stack())
+        # int32 matrix with shape [K, N] bound by [-L, L]:
+        current_sample = current_sample_rows.stack()
+        return current_sample
 
     def compute_sigma(self, X):
         """
@@ -91,7 +179,7 @@ class ProbabilisticTPM(TPM):
         )
         return original, nonzero
 
-    def normalize_weights(self, i=-1, j=-1):
+    def normalize_weights(self, i=None, j=None):
         """Normalizes probability distributions.
 
         Normalizes the probability distribution associated with W[i, j]. If
@@ -102,12 +190,21 @@ class ProbabilisticTPM(TPM):
             i (int): Index of the hidden neuron distribution to normalize.
             j (int): Index of the input neuron distribution to normalize.
         """
-        # TODO: try tf.vectorized_map
-        if (j < 0 and i < 0):
-            self.w.assign(tf.map_fn(tf.math.reduce_mean, self.w))
+        # https://github.com/brigan/NeuralCryptography/blob/dec94a21f5de316bd7a87e24f55af23eb146fccd/TPM.h#L581-L619
+        if i and j:
+            self.w.assign(
+                tf.vectorized_map(
+                    lambda wi: tf.vectorized_map(
+                        lambda wij: wij / tf.math.reduce_sum(wij),
+                        wi,
+                    ),
+                    self.w,
+                ),
+            )
         else:
             self.w[i, j].assign(
-                tf.map_fn(tf.math.reduce_mean, self.w[i, j]))
+                self.w[i][j] / tf.math.reduce_sum(self.w[i][j])
+            )
 
     def index_to_weight(self, index):
         # indices:    0,   1,   2,   3,   4
@@ -123,9 +220,12 @@ class ProbabilisticTPM(TPM):
         """
         self.mpW.assign(tf.reshape(
             tf.map_fn(
-                lambda x: self.index_to_weight(tf.math.argmax(x)),
-                tf.reshape(self.w.probs_parameter(),
-                           (self.K * self.N, 2 * self.L + 1)),
+                lambda wi: tf.map_fn(
+                    lambda wij: self.index_to_weight(tf.math.argmax(wij)),
+                    wi,
+                    dtype=tf.int32,
+                ),
+                self.w,
                 dtype=tf.int32,
             ),
             (self.K, self.N),
@@ -136,22 +236,18 @@ class ProbabilisticTPM(TPM):
         experimental_autograph_options=autograph_features,
         experimental_relax_shapes=True,
     )
-    def update(self, tau2, updated_A_B, num_samples=10.):
+    def update(self, tau2, updated_A_B, num_samples=10):
         # https://pdfs.semanticscholar.org/a4d1/66b13f6297438cb95f71c0445bee5743a2f2.pdf#page=55
         if updated_A_B:
-            num_valid_samples = 0.
-            posterior_weights = tf.zeros([self.K, self.N, 2*self.L+1], tf.float32)
-            for sample in self.w.sample(sample_shape=num_samples):
-                current_sample_rows = tf.TensorArray(tf.int32, size=self.K)
-                for index_k in tf.range(self.K):
-                    current_sample_cols = tf.TensorArray(tf.int32, size=self.N)
-                    for index_n in tf.range(self.N):
-                        current_sample_cols = current_sample_cols.write(
-                            index_n,
-                            tf.cast(tf.where(sample[index_k][index_n] == 1)[0][0], tf.int32) - self.L,
-                        )
-                    current_sample_rows = current_sample_rows.write(index_k, current_sample_cols.stack())
-                current_sample = current_sample_rows.stack()  # sample from weights
+            num_valid_samples = 0
+            valid_samples = tf.TensorArray(
+                self.w.dtype,
+                size=num_samples,  # this is the max size
+                infer_shape=False,
+                element_shape=self.w.shape,
+            )
+            for _ in tf.range(num_samples):
+                current_sample = self.sample()
                 # compute inner activation sigma, [K]
                 original = tf.math.sign(tf.math.reduce_sum(
                     tf.math.multiply(self.X, current_sample), axis=1))
@@ -163,12 +259,35 @@ class ProbabilisticTPM(TPM):
                 )
                 # tau is the output of the TPM, and is a binary scalar
                 # tau is float16 for ProbabilisticTPM
-                tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int32)
+                tau = tf.cast(tf.math.sign(
+                    tf.math.reduce_prod(nonzero)), tf.int32)
+                # tf.print(current_sample)
                 if tf.math.equal(tau, tau2):
-                    num_valid_samples += 1.
-                    posterior_weights += tf.cast(sample, tf.float32)
-            posterior_weights /= num_valid_samples
-            # self.w = self.w.copy(probs=posterior_weights)
+                    # tf.print(tf.one_hot(
+                    #     current_sample[1][1] + tf.cast(self.L, current_sample.dtype),
+                    #     2 * self.L + 1,
+                    #     dtype=self.w.dtype,
+                    # ))
+                    valid_samples.write(
+                        num_valid_samples,
+                        tf.vectorized_map(
+                            lambda si: tf.vectorized_map(
+                                lambda sij: tf.one_hot(
+                                    sij + tf.cast(self.L, sij.dtype),
+                                    2 * self.L + 1,
+                                    dtype=self.w.dtype,
+                                ),
+                                si,
+                            ),
+                            current_sample,
+                        ),
+                    )
+                    tf.print('enc', tf.math.count_nonzero(valid_samples.read(num_valid_samples)))
+                    num_valid_samples += 1
+            valid_samples = valid_samples.stack()
+            posterior_weights = tf.math.reduce_mean(valid_samples, axis=0)
+            self.w.assign(posterior_weights)
+            # self.normalize_weights()  # not necessary?
         mlencrypt_research.update_rules.probabilistic.hebbian()
 
         self.get_expected_weights()

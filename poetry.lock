@@ -1350,24 +1350,6 @@ version = "2.2.0"
 
 [[package]]
 category = "main"
-description = "Probabilistic modeling and statistical inference in TensorFlow"
-name = "tensorflow-probability"
-optional = false
-python-versions = "*"
-version = "0.10.0"
-
-[package.dependencies]
-cloudpickle = ">=1.2.2"
-decorator = "*"
-gast = ">=0.3.2"
-numpy = ">=1.13.3"
-six = ">=1.10.0"
-
-[package.extras]
-jax = ["jax", "jaxlib"]
-
-[[package]]
-category = "main"
 description = "ANSII Color formatting for output in terminal."
 name = "termcolor"
 optional = false
@@ -1535,7 +1517,7 @@ matplotlib = "*"
 numpy = "*"
 
 [metadata]
-content-hash = "b293bebf4830f7f9851790409f101df30fe0c2a6b2975b069a0c3055065d9030"
+content-hash = "938367053f70640b2818b008a399f4406784a619885728d7499bb664b38e3a63"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -2308,9 +2290,6 @@ tensorflow = [
 ]
 tensorflow-estimator = [
     {file = "tensorflow_estimator-2.2.0-py2.py3-none-any.whl", hash = "sha256:d09dacdd127f2579cea8d5af21f4a918036b8ae246adc82f26b61f91cc247dc2"},
-]
-tensorflow-probability = [
-    {file = "tensorflow_probability-0.10.0-py2.py3-none-any.whl", hash = "sha256:961f752ffde04595557a99034a07793de657eaff4b6eff5d19613910b13ec4d4"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},

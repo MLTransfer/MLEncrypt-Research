@@ -647,8 +647,6 @@ tensorflow==2.2.0 \
     --hash=sha256:784ab8217e4b0eb4d121c28430c6cdc2ce56c02634a9720d84fb30598b338b8c
 tensorflow-estimator==2.2.0 \
     --hash=sha256:d09dacdd127f2579cea8d5af21f4a918036b8ae246adc82f26b61f91cc247dc2
-tensorflow-probability==0.10.0 \
-    --hash=sha256:961f752ffde04595557a99034a07793de657eaff4b6eff5d19613910b13ec4d4
 termcolor==1.1.0 \
     --hash=sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b
 threadpoolctl==2.1.0 \

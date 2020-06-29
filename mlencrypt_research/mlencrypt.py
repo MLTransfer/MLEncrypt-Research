@@ -4,7 +4,6 @@ from mlencrypt_research.summaries import tb_summary, tb_heatmap, tb_boxplot
 
 from os import getenv
 # from time import perf_counter
-from importlib import import_module
 
 import tensorflow as tf
 from numpy import pi
@@ -226,19 +225,17 @@ def run(
 
         Bob = TPM('Bob', K, N, L, initial_weights['Bob'])
 
-        # TODO: don't reimport entire file:
-        tpm_mod = import_module('mlencrypt_research.tpms')
         if attack == 'probabilistic':
-            Eve_class_name = 'ProbabilisticTPM'
+            from mlencrypt_research.tpms import ProbabilisticTPM
+            Eve = ProbabilisticTPM('Eve', K, N, L)
         elif attack == 'geometric':
-            Eve_class_name = 'GeometricTPM'
+            from mlencrypt_research.tpms import GeometricTPM
+            Eve = GeometricTPM('Eve', K, N, L, initial_weights['Eve'])
         elif attack == 'none':
-            Eve_class_name = 'TPM'
+            Eve = TPM('Eve', K, N, L, initial_weights['Eve'])
         else:
             # TODO: better message for ValueError
             raise ValueError
-        Eve_class = getattr(tpm_mod, Eve_class_name)
-        Eve = Eve_class('Eve', K, N, L, initial_weights['Eve'])
 
         # try:
         # synchronization score of Alice and Bob

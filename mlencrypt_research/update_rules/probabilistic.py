@@ -1,6 +1,4 @@
 import tensorflow as tf
-import tensorflow_probability as tfp
-from os import getenv
 
 
 def analytical():
@@ -27,20 +25,11 @@ def monte_carlo(W, X, l, tau2, num_samples=10.):
     # sample from probability distributions
     # set probabilistic weights to a posteriori result of this sampling
     # (like Bayes rule)
-    k, n, _ = W.probs.shape
+    k, n = W.shape
     num_valid_samples = 0.
     posterior_weights = tf.zeros([k, n, 2*l+1], tf.float32)
-    for sample in W.sample(sample_shape=num_samples):
-        current_sample_rows = tf.TensorArray(tf.int32, size=k)
-        for index_k in tf.range(k):
-            current_sample_cols = tf.TensorArray(tf.int32, size=n)
-            for index_n in tf.range(n):
-                current_sample_cols = current_sample_cols.write(
-                    index_n,
-                    tf.cast(tf.where(sample[index_k][index_n] == 1)[0][0], tf.int32) - l,
-                )
-            current_sample_rows = current_sample_rows.write(index_k, current_sample_cols.stack())
-        current_sample = current_sample_rows.stack()  # sample from weights
+    for _ in tf.range(num_samples):
+        current_sample = W.sample()
         # compute inner activation sigma, [K]
         original = tf.math.sign(tf.math.reduce_sum(
             tf.math.multiply(X, current_sample), axis=1))
@@ -55,12 +44,8 @@ def monte_carlo(W, X, l, tau2, num_samples=10.):
         tau = tf.cast(tf.math.sign(tf.math.reduce_prod(nonzero)), tf.int32)
         if tf.math.equal(tau, tau2):
             num_valid_samples += 1.
-            posterior_weights += tf.cast(sample, tf.float32)
+            posterior_weights += tf.cast(current_sample, tf.float32)
     posterior_weights /= num_valid_samples
-    W = W.copy(probs=posterior_weights)
-    # tf.print(posterior_weights)
-    # should be equal to tf.fill([k, n], 1.):
-    # tf.print(tf.math.reduce_sum(W.probs, axis=2))
 
 
 def hebbian():
